@@ -287,6 +287,14 @@ ${C_INFO}Aprender Amass:${C_OFF}
         ./start.sh amass enum -active -d lab.local -p 80,443 -timeout 2
 
 ${C_DIM}Dominio ficticio: lab.local   ·   Red: 192.168.56.0/24   ·   Sin salida a Internet${C_OFF}
+
+${C_INFO}AVISO:${C_OFF} Todo esto corre en tu propio portatil. El dominio lab.local
+no existe en Internet y la red 192.168.56.0/24 es privada. No puedes hacer
+dao a nadie con este laboratorio.
+
+  Para practicar contra objetivos reales, lee la seccion "Pruebas contra
+  objetivos reales" de 02-GUIA-LABORATORIO.md. La regla: el alcance se define
+  antes de la herramienta.
 EOF
         ;;
     *)

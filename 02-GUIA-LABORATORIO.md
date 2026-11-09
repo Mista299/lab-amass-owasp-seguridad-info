@@ -8,6 +8,92 @@ Dominio ficticio: `lab.local` · Red: `192.168.56.0/24`
 
 ---
 
+# ⚠️ LEER ANTES DE HACER NADA
+
+## ¿Dónde se ejecuta este laboratorio?
+
+**Todo ocurre dentro de tu propio portátil.** No hay servidor remoto, no hay
+nube, no hay objetivo ajeno.
+
+- El dominio `lab.local` **no existe en Internet** (es un TLD reservado por la IANA).
+- La red `192.168.56.0/24` es **privada** (RFC 1918).
+- El servidor DNS es un contenedor de Docker en tu máquina.
+
+**No puedes hacer daño a nadie con este laboratorio.** Es un entorno de práctica
+que se monta y se desmonta con dos comandos.
+
+---
+
+## ¿Y si quiero practicar contra algo real?
+
+Aquí está la parte importante, y la respuesta corta es: **depende, y casi
+siempre la respuesta es "tu propio dominio"**.
+
+### Las tres opciones, en orden de recomendación
+
+| # | Opción | ¿Qué puedes practicar? | ¿Riesgo? |
+|---|---|---|---|
+| **1** | **Este laboratorio** (DNS propio en Docker) | Todo: pasivo, DNS, fuerza bruta, AXFR, priorización | **Nulo** |
+| **2** | **Tu propio dominio** (~10 USD/año en DigitalOcean, Namecheap o Cloudflare) | Todo, contra infraestructura real | **Nulo** (tú autorizas) |
+| **3** | **Dominios reservados por la IANA** (`example.com`, `example.org`, `example.net`) | **Solo pasivo**: OSINT, Certificate Transparency, DNS pasivo | Nulo |
+| **4** | **Programas de bug bounty** (HackerOne, Bugcrowd) | Reconocimiento dentro del scope publicado | Bajo, si te identificas bien |
+
+### La regla de oro
+
+> **El alcance se define antes de la herramienta, no después.**
+>
+> "Voy a usar Amass" **no** es un alcance.
+> "Autorizo el reconocimiento pasivo del dominio X" **sí** lo es.
+
+Sin autorización escrita, escanear es un delito informático en la mayoría de
+legislaciones (en Colombia: Ley 1273 de 2009 y Decreto 175 de 2015). Esto
+aplica **también a los dominios reservados por la IANA**: que "el objetivo no
+tenga nada interesante" no lo convierte en un objetivo permitido.
+
+### Lo que HackerOne sí y no es
+
+**No hay ningún laboratorio ni máquina virtual en HackerOne.** Es una
+plataforma de reporte de vulnerabilidades:
+
+```
+1. Te registras en hacker.com
+2. Eliges un programa y lees su SCOPE (la lista de activos autorizados)
+3. Haces reconocimiento PASIVO sobre esos dominios
+4. Si encuentras algo, lo REPORTAS en la plataforma
+5. Te pagan según la severidad
+```
+
+Lo que Amass te sirve ahí:
+
+```bash
+# Reconocimiento pasivo — permitido por la mayoría de programas
+amass enum -d hackerone.com -timeout 2
+```
+
+Lo que **no** debes hacer sin permiso explícito en el scope del programa:
+fuerza bruta masiva, escaneo de puertos y exploitation.
+
+> **Para tu exposición:** este laboratorio es mejor que un objetivo real,
+> porque es reproducible, tarda segundos y tus compañeros pueden montarlo en
+> su propio portátil con un comando.
+
+### El aviso que también aplica en clase
+
+Aunque el laboratorio es inofensivo, **las técnicas que demuestra sí se
+aplican contra sistemas reales**. Cuando practiques fuera de clase:
+
+- Empieza siempre por pasivo.
+- Si vas a tocar el objetivo, ten autorización escrita.
+- Identifícate (tu IP y tu user agent) cuando el programa lo pida.
+- Si te dicen "para" o "stop", paras.
+
+La detalle completa, con lo que debe contener una autorización y las
+verificaciones que hice en esta máquina, está en:
+
+> **→ [Pruebas contra objetivos reales · Qué es legal y qué no](#pruebas-contra-objetivos-reales--qué-es-legal-y-qué-no)**
+
+---
+
 ## Las dos "máquinas" del laboratorio
 
 Aunque los dos corren en Docker, piénsalos como dos máquinas separadas:
@@ -32,6 +118,12 @@ Aunque los dos corren en Docker, piénsalos como dos máquinas separadas:
 - [Paso 3 · Comandos de la práctica](#paso-3--comandos-de-la-práctica)
 - [Paso 4 · Experimentos para aprender](#paso-4--experimentos-para-aprender)
 - [Paso 5 · Resumen: dónde se ejecuta cada cosa](#paso-5--resumen-dónde-se-ejecuta-cada-cosa)
+
+**Empieza por aquí**
+- [⚠️ LEER ANTES DE HACER NADA](#️-leer-antes-de-hacer-nada)
+  · [¿Dónde se ejecuta este laboratorio?](#dónde-se-ejecuta-este-laboratorio)
+  · [¿Y si quiero practicar contra algo real?](#y-si-quiero-practicar-contra-algo-real)
+  · [Lo que HackerOne sí y no es](#lo-que-hackerone-sí-y-no-es)
 
 **Conceptos**
 - [Entender el laboratorio · Qué es un DNS](#entender-el-laboratorio--qué-es-un-dns-y-qué-hace-cada-contenedor)

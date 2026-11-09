@@ -11,6 +11,38 @@ Todo corre en Docker. No necesitas Kali, ni máquinas virtuales, ni una IP públ
 
 ---
 
+## ⚠️ Antes de empezar
+
+**Todo este laboratorio ocurre dentro de tu portátil.** No hay servidor remoto,
+no hay nube, no hay objetivo ajeno:
+
+- El dominio `lab.local` **no existe en Internet** (TLD reservado por la IANA).
+- La red `192.168.56.0/24` es **privada** (RFC 1918).
+- El servidor DNS es un contenedor de Docker en tu máquina.
+
+No puedes hacer daño a nadie con este laboratorio.
+
+### ¿Y si quiero practicar contra algo real?
+
+| Opción | Qué puedes practicar | Riesgo |
+|---|---|---|
+| **Este laboratorio** | Todo: pasivo, DNS, fuerza bruta, AXFR | **Nulo** |
+| **Tu propio dominio** (~10 USD/año) | Todo, contra infraestructura real | **Nulo** |
+| **Dominios IANA** (`example.com`) | **Solo pasivo**: OSINT, CT, DNS pasivo | Nulo |
+| **Bug bounty** (HackerOne, Bugcrowd) | Solo dentro del scope publicado | Bajo |
+
+> **El alcance se define antes de la herramienta.** "Voy a usar Amass" no es un
+> alcance; "autorizo el reconocimiento pasivo del dominio X" sí.
+>
+> Y ojo: **HackerOne no es un laboratorio**. Es una plataforma de reporte: te
+> registras, lees el scope de un programa, haces reconocimiento pasivo y
+> reportas lo que encuentres. No hay máquina virtual que descargar.
+
+Detalle completo en
+[`02-GUIA-LABORATORIO.md`](02-GUIA-LABORATORIO.md#pruebas-contra-objetivos-reales--qué-es-legal-y-qué-no).
+
+---
+
 ## Requisitos
 
 | Componente | Versión | En Arch | En Debian/Ubuntu |
