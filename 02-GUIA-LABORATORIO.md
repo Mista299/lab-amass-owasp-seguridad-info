@@ -181,6 +181,264 @@ suele estar en `/usr/local/bin` (revisa con `echo $PATH`); en Kali, en `/usr/bin
 
 ---
 
+## Entender el laboratorio · Qué es un DNS y qué hace cada contenedor
+
+> Esta sección es el contexto para entender todo lo demás. Léela antes de la
+> práctica si todavía no dominas DNS.
+
+---
+
+### ¿Qué es un DNS?
+
+**DNS es el sistema que traduce nombres a direcciones IP.**
+
+Es la libreta de contactos de Internet. Cuando escribes `www.lab.local` en el
+navegador, alguien tiene que convertir ese nombre en algo que se pueda
+conectar por red: una dirección como `192.168.56.103`.
+
+```
+  www.lab.local          ← el NOMBRE (lo que escribes tú)
+        │
+        │  "¿qué IP tiene este nombre?"
+        ▼
+  ┌─────────────┐
+  │   DNS       │  ← el LIBRO (nombres → direcciones)
+  └─────────────┘
+        │
+        ▼
+  192.168.56.103        ← la DIRECCIÓN (lo que se conecta el navegador)
+```
+
+Sin DNS, tendrías que escribir `http://192.168.56.103` en lugar de
+`http://www.lab.local`. Todo Internet funciona sobre esta traducción.
+
+#### Los dos papeles del DNS
+
+| Papel | Qué hace | Ejemplo |
+|---|---|---|
+| **Resolver** (resolver) | Nombre → IP | `dev.lab.local` → `192.168.56.103` |
+| **Autoritativo** (authoritative) | Guardar la zona y responder por ella | Nuestro servidor con la zona `lab.local` |
+
+**Nuestro contenedor `dns` es autoritativo**: no busca la respuesta en otro
+lugar, la tiene. Es la fuente de verdad de esa zona.
+
+#### Un registro DNS no es solo un nombre y una IP
+
+Un registro tiene un **tipo**. Los más comunes:
+
+| Tipo | Para qué | Ejemplo en nuestro laboratorio |
+|---|---|---|
+| `A` | Nombre → IPv4 | `dev.lab.local` → `192.168.56.103` |
+| `AAAA` | Nombre → IPv6 | (no usamos) |
+| `CNAME` | Alias: un nombre apunta a otro | `intranet.lab.local` → `portal.lab.local` |
+| `NS` | Qué servidores DNS son los autorizados | `lab.local` → `ns1.lab.local` |
+| `MX` | Servidor de correo | `lab.local` → `mail.lab.local` |
+| `SRV` | Qué puerto y protocolo usa un servicio | `_sip._tcp.lab.local` → `sipserver.lab.local:5060` |
+
+#### Las dos respuestas del DNS
+
+Esto es lo que hace la demostración:
+
+| Respuesta | Significado | Ejemplo |
+|---|---|---|
+| **NOERROR** | "El nombre existe, aquí tienes la respuesta" | `dev.lab.local` → `192.168.56.103` |
+| **NXDOMAIN** | "**No existe.** Este nombre no está en mi zona" | `test.lab.local` → nada |
+
+**NXDOMAIN** significa *Non-Existent Domain*. Es la respuesta del DNS cuando
+le preguntas por algo que no tiene.
+
+> **Por qué importa en la práctica:** cuando Amass hace fuerza bruta, no está
+> "adivinando". Le pregunta al DNS autoritativo. Si el DNS contesta NXDOMAIN,
+> el nombre no existe y Amass lo **descarta**. Si contesta NOERROR con una IP,
+> lo **confirma**.
+>
+> El DNS es el juez. La herramienta solo pregunta.
+
+Comprobación real en el laboratorio:
+
+```bash
+# Un nombre que existe
+docker compose -f compose.yaml exec amass   dig @192.168.56.101 dev.lab.local A | grep status:
+# → status: NOERROR
+
+# Un nombre que NO existe
+docker compose -f compose.yaml exec amass   dig @192.168.56.101 test.lab.local A | grep status:
+# → status: NXDOMAIN
+```
+
+---
+
+### Los dos contenedores
+
+#### `dns` — El servidor DNS autoritativo ficticio
+
+```
+┌─────────────────────────────────────────────┐
+│  amass-lab-dns                              │
+│  IP: 192.168.56.101                         │
+│                                             │
+│  Servicio: python3 dns_server.py            │
+│  Puerto:   UDP 53  ← el puerto del DNS      │
+│                                             │
+│  Qué expone: UNA SOLA COSA                  │
+│  La zona "lab.local" con 32 nombres          │
+│                                             │
+│  Estado: ES LA ÚNICA FUENTE DE VERDAD       │
+│  del laboratorio. Si un nombre no está      │
+│  aquí, no existe.                           │
+└─────────────────────────────────────────────┘
+```
+
+**Qué expone y por qué:**
+
+| Aspecto | Detalle |
+|---|---|
+| **Puerto** | UDP 53 (el puerto estándar de DNS) |
+| **Protocolo** | DNS sobre UDP |
+| **Expone** | Un solo recurso: la zona `lab.local` |
+| **Zona** | 32 nombres: A, CNAME, NS, MX y un SRV |
+| **Responde** | NOERROR con la IP si el nombre existe; NXDOMAIN si no |
+| **No expone** | NADA más. No hay web, ni SSH, ni base de datos. |
+
+Su código está en `lab-infra/docker/dns_server.py`, y la zona en
+`lab-infra/dns/zone.txt`. Puedes leer ambos.
+
+Ver la zona completa:
+
+```bash
+docker compose -f compose.yaml exec dns cat /app/zone.txt
+```
+
+#### `amass` — El atacante
+
+```
+┌─────────────────────────────────────────────┐
+│  amass-lab-amass                            │
+│  IP: 192.168.56.100                         │
+│                                             │
+│  Servicios:                                 │
+│    · amass engine  → HTTP en 4000          │
+│    · amass enum    → el comando de escaneo  │
+│    · amass subs    → lectura de resultados │
+│                                             │
+│  Base de datos: SQLite en                   │
+│    /.config/amass/asset.db                  │
+│                                             │
+│  Contiene: 35+ plugins de reconocimiento    │
+│  (DNS, Certificate Transparency, scraping…) │
+└─────────────────────────────────────────────┘
+```
+
+**Qué expone:**
+
+| Aspecto | Detalle |
+|---|---|
+| **Puerto** | HTTP 4000 (solo dentro de la red del laboratorio) |
+| **Expone** | La API del motor de Amass, para que el cliente `enum` le pida trabajo |
+| **Guarda** | El grafo de activos en SQLite |
+| **Contiene** | El binario `amass` con todos sus plugins |
+
+**El flujo de trabajo, paso a paso:**
+
+```
+1.  amass enum -d lab.local
+        │
+        │  ¿existe un motor corriendo?
+        ▼
+2.  Arranca "amass engine" en segundo plano (HTTP :4000)
+        │
+        │  POST /api/v1/sessions  →  "crea una sesión de enumeración"
+        ▼
+3.  El motor carga su config: el scope (lab.local), los puertos (80,443)
+    y las transformaciones
+        │
+        │  "busca activos de lab.local"
+        ▼
+4.  Los plugins trabajan:
+      · DNS → consulta al contenedor dns (192.168.56.101)
+      · SRV → prueba prefijos estándar (_ldap._tcp, _sip._tcp…)
+      · HTTP-Probes → comprueba los puertos 80 y 443
+        │
+        │  cada hallazgo se guarda como entidad + relación
+        ▼
+5.  El grafo queda en asset.db
+        │
+        ▼
+6.  amass subs -names -d lab.local -ip  →  lo lee y lo muestra
+```
+
+**Por qué el motor está en un puerto HTTP:** el motor es un servicio
+independiente. El comando `enum` es un cliente que le dice "haz esta
+enumeración" y espera. Por eso se pueden lanzar varios `enum` contra el mismo
+motor, o consultar resultados mientras otra enumeración corre.
+
+---
+
+### Cómo se hablan entre sí
+
+```
+┌──────────────────────┐         ┌──────────────────────┐
+│  amass-lab-amass      │         │  amass-lab-dns       │
+│  192.168.56.100       │         │  192.168.56.101      │
+│                       │         │                      │
+│  "dev.lab.local       │  DNS    │  busca dev.lab.local │
+│   resuelve a qué IP?" │ ──────► │  en la zona          │
+│                       │  :53    │                      │
+│  ← 192.168.56.103     │ ◄────── │  "192.168.56.103"    │
+│                       │         │                      │
+│  guarda la relación   │         │  "test.lab.local"    │
+│  en asset.db          │         │   no está en la zona │
+│                       │  DNS    │                      │
+│                       │ ──────► │  → NXDOMAIN         │
+│                       │         │                      │
+└──────────────────────┘         └──────────────────────┘
+```
+
+El tráfico DNS va **dentro de la red Docker** (`192.168.56.0/24`). Nunca sale
+a Internet. Las dos "máquinas" se ven entre sí como si fueran equipos físicos
+en un switch.
+
+---
+
+### Los dos tipos de activos
+
+Cuando el motor termina, la base de datos tiene activos de dos clases:
+
+| Tipo | Ejemplo | Confianza | Significado |
+|---|---|---|---|
+| **Confirmado** | `dev.lab.local` | 100 | El DNS respondió con una IP. Existe de verdad. |
+| **Descartado** | `test.lab.local` | Baja o nula | Se consultó, el DNS dijo NXDOMAIN. No existe. |
+
+El valor de guardar ambos es que **sabes qué preguntaste y qué obtuviste**.
+Un escáner que solo devuelve lo que encontró no te permite afirmar que su
+cobertura fue completa. Amass sí.
+
+---
+
+### Comprobación de que el DNS no miente
+
+Una prueba rápida para tus compañeros de clase: pregunta por un nombre que inventaste
+en el momento.
+
+```bash
+# Un nombre que nunca existió en la zona
+docker compose -f compose.yaml exec amass   dig @192.168.56.101 este-no-existe-xyz.lab.local A | grep status:
+# → status: NXDOMAIN
+```
+
+Y un nombre que sí existe:
+
+```bash
+docker compose -f compose.yaml exec amass   dig @192.168.56.101 www.lab.local A | grep status:
+# → status: NOERROR
+```
+
+Si alguien dice "eso no es real, tú lo inventaste", la respuesta es: **el
+servidor DNS es el que dice que no existe**. No es Amass filtrando; es el
+servidor de nombres autoritativo respondiendo.
+
+---
+
 ## Paso 1 · Montar el laboratorio
 
 Desde tu portátil (Arch), en la raíz del proyecto:
@@ -381,74 +639,368 @@ amass subs -show -d lab.local -ip
 ### 3.6 Ver todo lo que se le preguntó al DNS
 
 > 📍 **Dónde:** en tu **portátil** (no dentro del contenedor)
+> 📍 **Desde:** la carpeta `lab-infra/docker`
 
-Sal de la máquina `amass` primero (`exit`), y desde `lab-infra/docker`:
+#### El comando
 
 ```bash
 docker compose -f compose.yaml logs dns | grep "query" \
   | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
 ```
 
-Aquí se ven los nombres que Amass consultó, **incluidos los que no existen**:
+#### Qué hace, paso a paso
+
+Es un **tubería**: cada comando recibe la salida del anterior. Vamos a ver cada
+etapa con datos reales.
+
+##### Paso 1 — `docker compose ... logs dns`
+
+Muestra el historial de mensajes del contenedor del servidor DNS. Cada línea
+tiene este formato:
+
+```
+amass-lab-dns  | [query] bgp.tools A id=13812 src=192.168.56.100
+```
+
+| Parte | Qué es |
+|---|---|
+| `amass-lab-dns  |` | Prefijo que Docker pone a cada línea |
+| `[query]` | Etiqueta que pone nuestro servidor DNS en cada consulta |
+| `bgp.tools` | El nombre que se consultó |
+| `A` | El tipo de registro DNS consultado |
+| `id=13812` | Identificador único de esa consulta |
+| `src=192.168.56.100` | Quién la hizo (el contenedor de Amass) |
+
+##### Paso 2 — `grep "query"`
+
+Se queda solo con las líneas que mencionan consultas DNS, descartando el resto
+del log (arranque del servidor, errores, etc.).
+
+##### Paso 3 — `sed 's/.*\[query\] //'`
+
+Borra el prefijo de cada línea y deja solo lo que viene después de `[query] `.
+
+```
+ANTES:  amass-lab-dns  | [query] bgp.tools A id=13812 src=192.168.56.100
+DESPUÉS:  bgp.tools A id=13812 src=192.168.56.100
+```
+
+El `.*` significa "cualquier cosa", y `\[query\]` es el texto literal
+`[query]`. El `//` del final es el separador de `sed` (se puede usar `/` u
+otro carácter).
+
+##### Paso 4 — `awk '{print $1}'`
+
+Imprime **solo la primera palabra** de cada línea. En Unix, los campos de una
+línea se separan por espacios y `$1` es el primero.
+
+```
+ANTES:  bgp.tools A id=13812 src=192.168.56.100
+DESPUÉS:  bgp.tools
+```
+
+Aquí `awk` cumple el papel de `cut -d' ' -f1`, pero es más flexible.
+
+##### Paso 5 — `sort -u`
+
+Ordena alfabéticamente (`sort`) y **elimina los duplicados** (`-u`, de *unique*).
+
+Aquí es donde se ve el valor: Amass consultó el mismo nombre varias veces
+(A, AAAA, CNAME) y cada candidato del wordlist más de una vez. Sin `-u`
+tendrías cientos de líneas repetidas.
+
+#### La salida
+
+```
+5isoprdn-1td.lab.local
+7vhr3btx00ytjh7._tcp.lab.local
+admin.lab.local
+api.lab.local
+bgp.tools
+dev.lab.local
+grafana.lab.local
+gitlab.lab.local
+jenkins.lab.local
+lab.local
+mail.lab.local
+qa.lab.local
+staging.lab.local
+test.lab.local          ← se preguntó, el DNS dijo que NO existe
+vpn.lab.local
+www.lab.local
+...
+```
+
+#### Cómo leer esta lista
+
+Tres tipos de nombres, y la diferencia es la lección:
+
+| Tipo | Ejemplo | Qué significa |
+|---|---|---|
+| **Nombres reales** | `dev.lab.local`, `vpn.lab.local` | Existen en la zona. El DNS confirmó. |
+| **Nombres que no existen** | `test.lab.local`, `stage.lab.local` | Se preguntaron y el DNS respondió NXDOMAIN. |
+| **Ruido interno** | `5isoprdn-1td.lab.local`, `7vhr3btx00ytjh7._tcp.lab.local` | Nombres aleatorios que genera Amass para detectar **wildcards** (DNS que responde a todo). |
+| **Nombres del plugin** | `bgp.tools`, `_ldap._tcp.lab.local` | El motor consulta dominios de servicios auxiliares y prefijos SRV estándar. |
+
+#### Filtrar solo lo que nos interesa
+
+Para ver solo los candidatos del wordlist (los que importan para la demo):
+
+```bash
+docker compose -f compose.yaml logs dns | grep "query" \
+  | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u \
+  | grep -E "^(www|mail|dev|staging|qa|admin|vpn|jenkins|gitlab|grafana|api|test|stage)\.lab\.local$"
+```
+
+La parte nueva es el último `grep -E`:
+
+| Parte | Qué hace |
+|---|---|
+| `grep -E` | Versión de grep que usa **expresiones regulares** (patrones con `^`, `\|`, `$`) |
+| `^` | La línea debe **empezar** por esto |
+| `(www\|mail\|dev\|...)` | Debe empezar por **uno de estos** nombres |
+| `\.lab\.local$` | Y terminar en `.lab.local` |
+| `$` | Fin de línea (para que no matchee `dev.lab.local.otro`) |
+
+Salida:
 
 ```
 admin.lab.local
 api.lab.local
 dev.lab.local
+gitlab.lab.local
 grafana.lab.local
 jenkins.lab.local
 lab.local
 mail.lab.local
-ns1.lab.local
-old.lab.local
 qa.lab.local
 staging.lab.local
-test.lab.local      ← se preguntó, el DNS dijo que NO existe
+test.lab.local
+stage.lab.local
 vpn.lab.local
 www.lab.local
 ```
 
-> **Este es el comando clave de la demostración:** los candidatos aparecen
-> porque se consultaron, pero solo quedan en los resultados los que el DNS
-> confirmó.
+Nótese que **`test` y `stage` aparecen** en la lista de consultas pero **no** en
+los resultados de `amass subs`. Esa diferencia es exactamente lo que
+demuestra la fuerza bruta: se preguntó y se descartaron.
+
+#### Comparar: lo consultado contra lo confirmado
+
+Un solo comando muestra la diferencia, que es el argumento central de la demo:
+
+```bash
+# Lo que se consultó (candidatos del wordlist)
+docker compose -f compose.yaml logs dns | grep "query" \
+  | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u \
+  | grep -E "^(www|mail|dev|staging|qa|admin|vpn|jenkins|gitlab|grafana|api|test|stage)\.lab\.local$" \
+  > /tmp/consultados.txt
+
+# Lo que Amass confirmó
+docker compose -f compose.yaml exec -T amass \
+  amass subs -names -d lab.local | awk '{print $1}' | sort -u > /tmp/confirmados.txt
+
+# Los descartados: se preguntó, pero no existen
+comm -23 /tmp/consultados.txt /tmp/confirmados.txt
+```
+
+Salida:
+
+```
+stage.lab.local
+test.lab.local
+```
+
+> **Ese es el momento de la demostración.** Dos nombres se preguntaron, el DNS
+> respondió que no existen, y Amass los descartó. La fuerza bruta no solo
+> confirma: también **rechaza**, y eso es lo que permite saber si el escaneo
+> fue completo.
 
 ---
 
 ### 3.7 Inspeccionar la base de datos de activos
 
 > 📍 **Dónde:** dentro de la máquina `amass`
+> 📍 **Herramienta:** `sqlite3` (ya viene instalada en la imagen)
+
+Aquí es donde se ve el **grafo de activos** que mencionamos en la teoría. Cada
+subdominio es una **entidad** y cada relación entre activos es una **arista**.
+
+#### 3.7.1 Ver las tablas
 
 ```bash
 sqlite3 /.config/amass/asset.db ".tables"
 ```
 
 ```
-account  domainrecord  edge  entity  fqdn  ipaddress  service  url ...
+account           edge_tag       fqdn             location      productrelease
+autnumrecord      edge_type_lu   fundstransfer    netblock      service
+autonomoussystem  entity         gorp_migrations  organization  tag_type_lu
+contactrecord     entity_tag     identifier       person        tlscertificate
+domainrecord      entity_type_lu ipaddress        phone         url
+edge              file           ipnetrecord      product
 ```
 
-Los nombres guardados:
+Las que importan para la demo:
+
+| Tabla | Qué guarda |
+|---|---|
+| `entity` | El índice de todos los activos (con su tipo y su clave natural) |
+| `fqdn` | Los nombres de dominio: `www.lab.local`, `vpn.lab.local`… |
+| `ipaddress` | Las direcciones IP |
+| `service` | Los servicios detectados en cada puerto |
+| `edge` | **Las relaciones.** Es la tabla del grafo. |
+| `entity_tag` | La **procedencia** de cada hallazgo: qué fuente lo descubrió y con qué confianza |
+
+#### 3.7.2 Los nombres descubiertos
 
 ```bash
 sqlite3 /.config/amass/asset.db "SELECT fqdn FROM fqdn ORDER BY fqdn;"
 ```
 
-Las IPs:
-
-```bash
-sqlite3 /.config/amass/asset.db "SELECT address FROM ipaddress;"
+```
+_sip._tcp.lab.local
+admin.lab.local
+api.lab.local
+dev.lab.local
+gitlab.lab.local
+grafana.lab.local
+jenkins.lab.local
+lab.local
+mail.lab.local
+ns1.lab.local
+qa.lab.local
+stage.lab.local
+staging.lab.local
+test.lab.local
+vpn.lab.local
+www.lab.local
 ```
 
-Cuántas relaciones (aristas del grafo) se encontraron:
+Fíjate en **`test.lab.local` y `stage.lab.local`**: están ahí. Amass los
+consultó, el DNS respondió que no existen, y aun así quedaron registrados como
+activos **con baja confianza**. Eso es el valor de la base de datos: no solo
+guarda lo que encontró, sino también lo que **descartó** y por qué.
+
+#### 3.7.3 Las direcciones IP
+
+```bash
+sqlite3 /.config/amass/asset.db "SELECT ip_address FROM ipaddress ORDER BY ip_address;"
+```
+
+```
+192.168.56.101
+192.168.56.103
+192.168.56.104
+192.168.56.105
+192.168.56.106
+192.168.56.107
+192.168.56.108
+192.168.56.109
+```
+
+#### 3.7.4 El grafo: las relaciones entre activos
+
+Esta es la consulta más importante. Une las tres tablas para mostrar **qué activo
+se relaciona con cuál y cómo**:
+
+```bash
+sqlite3 -header -column /.config/amass/asset.db "
+SELECT f.fqdn AS origen, e.label AS relacion, ip.ip_address AS destino
+FROM edge e
+JOIN entity se ON se.entity_id = e.from_entity_id
+JOIN fqdn f ON f.id = se.row_id
+JOIN entity de ON de.entity_id = e.to_entity_id
+LEFT JOIN ipaddress ip ON ip.id = de.row_id
+ORDER BY f.fqdn LIMIT 12;"
+```
+
+```
+     origen         relacion      destino
+-----------------  ----------  ------------------
+admin.lab.local    dns_record  192.168.56.105
+api.lab.local      dns_record  192.168.56.109
+dev.lab.local      dns_record  192.168.56.103
+gitlab.lab.local   dns_record  192.168.56.107
+grafana.lab.local  dns_record  192.168.56.108
+jenkins.lab.local  dns_record  192.168.56.107
+lab.local          dns_record  192.168.56.101
+...
+```
+
+Qué significa cada columna:
+
+| Columna | Significado |
+|---|---|
+| `origen` | El activo desde el que sale la relación |
+| `relacion` | El tipo de relación: `dns_record`, `node`, `tcp_port_443`… |
+| `destino` | El activo al que apunta |
+
+`dns_record` significa "este nombre resuelve a esta IP". `node` significa
+"este subdominio cuelga de este dominio".
+
+#### 3.7.5 Cuántas relaciones se encontraron
 
 ```bash
 sqlite3 /.config/amass/asset.db "SELECT COUNT(*) FROM edge;"
 ```
 
-Los logs del motor, con cada relación descubierta:
+```
+27
+```
+
+#### 3.7.6 La procedencia: qué fuente descubrió cada activo
+
+```bash
+sqlite3 -header -column /.config/amass/asset.db "
+SELECT f.fqdn AS activo, t.tag_type AS fuente, t.val AS valor
+FROM entity_tag t
+JOIN entity e ON e.entity_id = t.entity_id
+JOIN fqdn f ON f.id = e.row_id
+LIMIT 12;"
+```
+
+> La columna `tag_type` indica el origen del dato (`DNS`, `Known-FQDN`, etc.) y
+> `val`, su nivel de confianza. Un activo descubierto por varias fuentes
+> aparece con varias etiquetas.
+
+#### 3.7.7 Los logs del motor: cada relación en texto plano
+
+Si lo de SQL te resulta ajeno, el motor también deja un log legible:
 
 ```bash
 ls -t /.config/amass/amass_engine_*.log | head -1 | xargs grep "relationship discovered"
 ```
+
+Cada línea es una relación descubierta, con el formato:
+
+```json
+{"msg":"relationship discovered","from":"lab.local","relation":"dns_record","to":"192.168.56.103"}
+```
+
+#### 3.7.8 Resumen: por qué esto importa
+
+```bash
+# Un resumen rápido de todo el grafo
+sqlite3 /.config/amass/asset.db "
+SELECT 'Activos FQDN: '  || COUNT(*) FROM fqdn
+UNION ALL SELECT 'Direcciones IP: ' || COUNT(*) FROM ipaddress
+UNION ALL SELECT 'Relaciones: '    || COUNT(*) FROM edge
+UNION ALL SELECT 'Servicios: '     || COUNT(*) FROM service;"
+```
+
+| Métrica | Por qué importa |
+|---|---|
+| Activos FQDN | El tamaño de la superficie descubierta |
+| Direcciones IP | Cuánta infraestructura hay detrás |
+| Relaciones | **La richness del grafo.** Si hay muchos activos y pocas relaciones, son nombres sueltos. Si hay muchas relaciones, hay un mapa. |
+| Servicios | Qué está 실제로 expuesto en cada puerto |
+
+> **El argumento para el profesor:** un escáner que solo devuelve una lista de
+> nombres te da N activos. Amass te da N activos **más** las relaciones entre
+> ellos, la procedencia de cada uno y el historial de qué cambió. Eso es lo que
+> convierte una lista de nombres en un inventario de superficie de ataque
+> accionable.
 
 ---
 

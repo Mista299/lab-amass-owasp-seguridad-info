@@ -189,7 +189,8 @@ show_menu() {
     printf '%s╰──────────────────────────────────────────────────────────────╯%s\n' "${C_INFO}" "${C_OFF}"
     printf '\n'
     printf '  %sOperación del laboratorio:%s\n' "${C_INFO}" "${C_OFF}"
-    printf '    ./start.sh --enum      Ejecutar la enumeración (fuerza bruta incluida)\n'
+    printf '    ./start.sh --enum      Ejecutar la enumeración activa\n'
+    printf '    ./start.sh --brute     Fuerza bruta DNS (confirma y descarta)\n'
     printf '    ./start.sh --results   Ver los resultados sin re-ejecutar\n'
     printf '    ./start.sh --dns       Ver las consultas DNS registradas\n'
     printf '    ./start.sh --logs      Seguir los logs en vivo\n'
@@ -257,6 +258,10 @@ case "${1:-}" in
         check_prereqs
         shift
         do_amass "$@"
+        ;;
+    --brute)
+        check_prereqs
+        exec "${SCRIPT_DIR}/start-brute.sh" "${2:-full}"
         ;;
     "" | --help | -h)
         cat <<EOF

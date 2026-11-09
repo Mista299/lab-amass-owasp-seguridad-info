@@ -1,3 +1,18 @@
+# =============================================================================
+# Lista de palabras para la fuerza bruta DNS — LABORATORIO OWASP AMASS
+#
+# 13 candidatos. 11 existen en la zona "lab.local" y 2 NO existen.
+#
+# El objetivo NO es "acertar": es demostrar que la fuerza bruta
+# (a) CONFIRMA los nombres que existen, y
+# (b) DESCARTA los que no existen.
+# Que 2 de 13 fallen es exactamente el punto pedagogico.
+#
+# Formato: un nombre de etiqueta por linea (sin el dominio).
+# Los comentarios se ignoran.
+# =============================================================================
+
+# --- Existen en la zona lab.local (11) ---------------------------------------
 www
 mail
 dev
@@ -9,4 +24,7 @@ jenkins
 gitlab
 grafana
 api
-old
+
+# --- NO existen en la zona: se descartan (2) ---------------------------------
+test
+stage
