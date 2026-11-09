@@ -1,9 +1,11 @@
 # Guía del laboratorio — OWASP Amass
 
 **Laboratorio de reconocimiento y mapeo de superficie de ataque**
+
 Dominio ficticio: `lab.local` · Red: `192.168.56.0/24`
 
 **Expositor:** Michael Stiven Tabares Tobón
+
 **Curso:** Seguridad de la Información — 2026-II · Ingeniería de Sistemas, UdeA
 
 ---
@@ -293,9 +295,10 @@ docker compose -f compose.yaml exec dns cat /app/zone.txt
 | Acción | Dónde |
 |---|---|
 | Montar, reset, detener | Portátil: `./start.sh`, `--reset`, `--stop` |
-| Entrar a la máquina Amass | Portátil: `cd lab-infra/docker && docker compose -f compose.yaml exec amass bash` |
+| Entrar a la máquina Amass | Portátil: `cd lab-infra/docker` y luego `docker compose -f compose.yaml exec amass bash` |
 | Todo lo de Amass, dig y sqlite3 | Dentro de la máquina Amass |
-| Logs del DNS y la zona | Portátil: `docker compose -f compose.yaml logs dns`, `exec dns cat /app/zone.txt` |
+| Logs del DNS | Portátil: `docker compose -f compose.yaml logs dns` |
+| La zona DNS | Portátil: `docker compose -f compose.yaml exec dns cat /app/zone.txt` |
 
 ---
 
