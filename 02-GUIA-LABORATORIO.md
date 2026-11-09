@@ -226,6 +226,88 @@ Salida:
 Esa diferencia es el punto: **la fuerza bruta no solo confirma, también
 descarta**. El DNS es el que decide.
 
+### La lista de palabras de la fuerza bruta
+
+El archivo `lab-infra/wordlists/subdomains-lab.txt` **está creado para este
+laboratorio**. No es una lista genérica de Internet ni viene con Amass.
+
+Contenido (13 palabras, una por línea, sin el dominio):
+
+```
+# --- Existen en la zona lab.local (11) ---
+www
+mail
+dev
+staging
+qa
+admin
+vpn
+jenkins
+gitlab
+grafana
+api
+
+# --- NO existen en la zona: se descartan (2) ---
+test
+stage
+```
+
+| Palabra | Resultado | Razón de la elección |
+|---|---|---|
+| `www` | Existe | Activo público esperado. El caso base. |
+| `mail` | Existe | Se encuentra por el registro MX de la zona. |
+| `dev` | Existe | Entorno de desarrollo. |
+| `staging` | Existe | Entorno de preproducción. |
+| `qa` | Existe | Entorno de pruebas. |
+| `admin` | Existe | Panel de administración. |
+| `vpn` | Existe | Acceso remoto. |
+| `jenkins` | Existe | Integración continua. |
+| `gitlab` | Existe | Repositorio de código. |
+| `grafana` | Existe | Panel de observabilidad. |
+| `api` | Existe | API de la organización. |
+| `test` | **No existe** | Nombre típico de pruebas. La zona no lo define. |
+| `stage` | **No existe** | Variante de `staging`. La zona solo define `staging`. |
+
+Dos decisiones importantes:
+
+**Los 11 primeros existen porque están en `lab-infra/dns/zone.txt`.** La zona
+del laboratorio se diseñó primero, con activos realistas de una organización
+de software, y después se extrajeron de ella las palabras que la fuerza bruta
+debe encontrar.
+
+**Los 2 últimos no existen a propósito.** No son un error: son el mecanismo
+que demuestra el descarte. `staging` existe pero `stage` no, y `test` es el
+nombre que todo el mundo probaría pero aquí no está definido. Si los 13
+encontraran respuesta, la demostración no probaría nada.
+
+Para ver el wordlist:
+
+```bash
+cat lab-infra/wordlists/subdomains-lab.txt
+```
+
+Y para compararlo con la zona:
+
+```bash
+grep -vE '^\s*(#|$)' lab-infra/wordlists/subdomains-lab.txt | while read -r w; do
+  if grep -q "^${w}\.lab\.local" lab-infra/dns/zone.txt; then
+    echo "${w}.lab.local -> existe"
+  else
+    echo "${w}.lab.local -> no existe"
+  fi
+done
+```
+
+Salida:
+
+```
+www.lab.local -> existe
+mail.lab.local -> existe
+...
+test.lab.local -> no existe
+stage.lab.local -> no existe
+```
+
 ### Ver las consultas DNS registradas
 
 Sal de la máquina Amass (`exit`) y desde `lab-infra/docker`:
