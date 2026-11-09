@@ -33,6 +33,10 @@ Aunque los dos corren en Docker, piénsalos como dos máquinas separadas:
 - [Paso 4 · Experimentos para aprender](#paso-4--experimentos-para-aprender)
 - [Paso 5 · Resumen: dónde se ejecuta cada cosa](#paso-5--resumen-dónde-se-ejecuta-cada-cosa)
 
+**Conceptos**
+- [Entender el laboratorio · Qué es un DNS](#entender-el-laboratorio--qué-es-un-dns-y-qué-hace-cada-contenedor)
+- [Cómo funciona esto en un entorno real](#cómo-funciona-esto-en-un-entorno-real)
+
 **Referencia**
 - [Los atajos del script](#los-atajos-del-script)
 - [La zona del laboratorio](#la-zona-del-laboratorio)
@@ -436,6 +440,215 @@ docker compose -f compose.yaml exec amass   dig @192.168.56.101 www.lab.local A 
 Si alguien dice "eso no es real, tú lo inventaste", la respuesta es: **el
 servidor DNS es el que dice que no existe**. No es Amass filtrando; es el
 servidor de nombres autoritativo respondiendo.
+
+---
+
+## Cómo funciona esto en un entorno real
+
+> La diferencia entre el laboratorio y la realidad no está en el comando. Está
+> en **a quién se le pregunta** y **si ese "objetivo" tiene permiso para
+> responderte**. Entender esto es lo que separa un mapeo de superficie de
+> ataque de un escaneo indiscriminado.
+
+---
+
+### El escenario real
+
+Supongamos `ejemplo.com`, una organización real.
+
+```
+TÚ (analista)                 INTERNET                    LA ORGANIZACIÓN
+     │                            │                              │
+     │  ¿qué NS tiene ejemplo.com? │                              │
+     ├───────────────────────────►│  ──► raíz . ──► TLD .com ──► │ ns1.ejemplo.com
+     │                            │                              │ ns2.ejemplo.com
+     │◄──────────────────────────┤◄─────────────────────────────┤
+     │  ns1.ejemplo.com = 203.0.113.10                           │
+     │                            │                              │
+     │  ¿qué IP tiene www.ejemplo.com?                            │
+     ├───────────────────────────────────────────────────────────►│
+     │◄───────────────────────────────────────────────────────────┤
+     │  www.ejemplo.com = 203.0.113.55                           │
+```
+
+**El punto clave:** El nameserver autoritativo de una organización **contesta
+a cualquiera que pregunte**. No hay autenticación. `dig @ns1.ejemplo.com
+www.ejemplo.com` funciona desde cualquier parte del mundo.
+
+Por eso el reconocimiento pasivo y el semi-activo son tan usados: **puedes
+preguntar sin que la víctima se entere**, porque una consulta DNS es
+indistinguible de la de cualquier usuario normal.
+
+---
+
+### Las tres formas de preguntar
+
+#### 1. Al resolver recursivo (un resolver público)
+
+```
+tú ──► 8.8.8.8 ──► raíz ──► TLD ──► ns1.ejemplo.com ──► respuesta ──► tú
+```
+
+Es lo que hace tu navegador. El resolver público recorre la jerarquía por ti.
+
+- ✅ No reveals tu IP al objetivo: ve el resolver, no el servidor autoritativo
+- ⚠️ Las consultas quedan en los logs del resolver público (Google, Cloudflare)
+- ❌ No sirve para enumerar: solo resuelve nombres que ya conoces
+
+#### 2. Directamente al autoritativo (lo que hace Amass)
+
+```
+tú ─────────────────────────────────► ns1.ejemplo.com
+```
+
+Amass pregunta **directamente** a los servidores de nombres del dominio.
+
+- ✅ Puedes preguntar por **cualquier** nombre, uno por uno (fuerza bruta)
+- ✅ Ves la **respuesta autoritativa**: el nombre existe o no existe (NXDOMAIN)
+- ⚠️ Tu IP sí aparece en los logs del servidor de nombres
+- ⚠️ Miles de consultas = fácil de detectar para un IDS bien configurado
+
+> **Por qué Amass pregunta directamente:** si usara un resolver recursivo,
+> no podría distinguir "este nombre no existe" de "este resolver no lo sabe".
+> Contra el autoritativo, el NXDOMAIN es definitivo.
+
+#### 3. Transferencia de zona (AXFR)
+
+```
+tú ──► ns1.ejemplo.com ──► "¿me das TODA la zona?"
+                            │
+                            ├─ Sí (mal configurado) → te llevas los 20.000 registros
+                            └─ No (bien configurado) → "REFUSED"
+```
+
+Una sola petición te da **toda la zona**. Es el peor error de configuración
+posible en un servidor DNS.
+
+Amass lo intenta automáticamente en modo activo. En el laboratorio lo activamos
+a propósito para poder mostrarlo.
+
+---
+
+### Por qué la fuerza bruta es un problema
+
+Si consultas un nombre y no existe, el servidor de nombres puede:
+
+| Configuración | Comportamiento | Consecuencia |
+|---|---|---|
+| Normal | Responde rápido NXDOMAIN | 20.000 candidatos = 20.000 consultas |
+| **Rate limiting** | Ralentiza o bloquea | Tu escaneo se frena |
+| **DNSLOG / IDS** | Registra y alerta | Te detectan |
+| **Wildcard** | Responde a TODO | Obtienes miles de falsos positivos |
+
+**El wildcard** es el caso interesante. Si el servidor tiene:
+
+```
+*.ejemplo.com  IN  A  203.0.113.99
+```
+
+entonces **todo** nombre resuelve. Tu fuerza bruta devolvería 20.000
+"descubrimientos" que no existen. Por eso Amass, antes de reportar un
+descubrimiento, genera **nombres aleatorios** y comprueba si también
+resuelven. Si un nombre aleatorio resuelve, sabe que hay un wildcard y puede
+descartar el falso positivo.
+
+Esos nombres aleatorios son los que ves en el log del laboratorio con formato
+`5isoprdn-1td.lab.local`. No son errores: son el control de calidad de Amass.
+
+---
+
+### El riesgo real de cada técnica
+
+| Técnica | Touches el objetivo | Riesgo | Cuándo es legítima |
+|---|---|---|---|
+| OSINT pasivo (crt.sh, Wayback) | No | **Nulo** | Siempre, con fines informativos |
+| Transferencia de zona | Sí, 1 consulta | **Bajo** | Con autorización |
+| Resolución DNS de nombres conocidos | Sí, pocas consultas | **Bajo** | Con autorización |
+| **Fuerza bruta DNS** | Sí, **miles** | **Medio-alto** | Con autorización explícita del alcance |
+| Escaneo de puertos | Sí, miles | **Medio-alto** | Con autorización explícita |
+| Explotación | Sí | **Fuera de alcance** | Nunca en un pentest |
+
+---
+
+### El flujo completo en una auditoría real
+
+```
+FASE 0 — Alcance por escrito
+         "Autorizo el reconocimiento pasivo del dominio ejemplo.com.
+          NO autorizo fuerza bruta ni escaneo de puertos."
+         ↓
+FASE 1 — Pasivo (OSINT)
+         amass enum -d ejemplo.com -timeout 60
+         → subdominios publicados en certificados, historiales, etc.
+         → CERO contacto con el objetivo
+         ↓
+FASE 2 — Validación (DNS)
+         Resolver los nombres obtenidos para ver cuáles siguen vivos
+         → algunos ya caducaron. Ese es el valor del dato pasivo
+         ↓
+FASE 3 — Activo (solo con autorización)
+         amass enum -active -d ejemplo.com -p 80,443,8080
+         → el inventario real, con servicios
+         ↓
+FASE 4 — Correlación con el inventario del cliente
+         "¿cuáles de estos no estaban en su inventario?"
+         ↓
+FASE 5 — Reporte priorizado
+         " vpn.ejemplo.com (crítico, no está en su inventario)"
+```
+
+**La fase 5 es la que genera valor.** La herramienta solo da el inventario.
+El análisis es el trabajo del analista.
+
+---
+
+### Las credenciales: el factor que se nos olvida
+
+Las fuentes pasivas de Amass se dividen en dos grupos:
+
+| Tipo | Ejemplos | ¿Necesita API key? |
+|---|---|---|
+| **Gratuitas** | crt.sh, Wayback, RapidDNS, DuckDuckGo, Bing | No |
+| **Con credenciales** | Shodan, VirusTotal, SecurityTrails, Censys, Netlas | **Sí** |
+
+Las que tienen credencial dan **mucho mejor** resultado: datos históricos,
+certificados completos, servicios. Por eso un mapeo serio empieza por
+configurar credenciales.
+
+En `lab-infra/configs/datasources.yaml` tienes la lista completa documentada.
+Todas están comentadas, porque en el laboratorio son innecesarias: el DNS
+ficticio ya nos da la respuesta.
+
+---
+
+### Qué cambia entre el laboratorio y la realidad
+
+| Aspecto | Laboratorio | Realidad |
+|---|---|---|
+| **Objetivo** | DNS propio en 192.168.56.101 | `ns1.ejemplo.com` en Internet |
+| **Consultas** | ~200, en red privada | Miles o millones |
+| **Credenciales** | No hacen falta | Shodan, VT, SecurityTrails… |
+| **Wildcards** | No hay | Hay que detectarlos |
+| **Rate limiting** | No | Puede frenarte |
+| **Detección** | Imposible | El IDS te ve |
+| **Autorización** | Tu propia zona | **Documento firmado** |
+| **Riesgo legal** | Ninguno | Altísimo sin permiso |
+
+**Lo único que cambia en el comando es el dominio.** Todo lo demás es idéntico.
+Por eso el laboratorio con un DNS propio es una buena aproximación: te
+permite practicar el mecanismo sin tocar a nadie.
+
+---
+
+### La regla de oro
+
+> **El alcance se define antes de la herramienta, no después.**
+>
+> "Voy a usar Amass" no es un alcance.
+> "Autorizo reconocimiento pasivo del dominio X" sí lo es.
+
+Si el alcance no está por escrito, no hay escaneo que sea legítimo. Y eso no
+lo decide la ethical del analista: lo decide el contrato.
 
 ---
 
