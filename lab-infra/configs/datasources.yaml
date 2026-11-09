@@ -1,0 +1,90 @@
+# =============================================================================
+# datasources.yaml — LABORATORIO OWASP AMASS (offline)
+#
+# IMPORTANTE: Amass v5 inicia TODOS los plugins API/scrape al arrancar el
+# motor, aunque no tengan credenciales configuradas. Cada uno intenta salir a
+# Internet. Para un laboratorio 100 % offline hay dos estrategias:
+#
+#   ESTRATEGIA A (recomendada, sin recompilar):
+#     1) Configurar `resolvers: [192.168.56.101]` en config.yaml
+#        => todo el tráfico DNS se queda en el laboratorio.
+#     2) Bloquear la salida HTTP desde la VM atacante con iptables/nftables.
+#        Las fuentes pasivas fallarán de forma rápida y controlada (timeout
+#        corto), y el modo activo/brute seguirá funcionando perfecto.
+#        Ver scripts/03-aislar-salida.sh
+#
+#   ESTRATEGIA B (aislamiento total del hypervisor):
+#     Red host-only SIN gateway ni NAT. Entonces ni siquiera hay ruta
+#     hacia Internet: las fuentes fallan de inmediato por "network
+#     unreachable", sin retardar la enumeración.
+#
+# En el archivo se dejan comentadas las fuentes que existen en la versión
+# actual para referencia; ninguna se habilita porque todas son externas.
+# =============================================================================
+
+global_options:
+  minimum_ttl: 1440
+
+datasources:
+  # ---------------------------------------------------------------------
+  # Fuentes que quedarían deshabilitadas. Se documentan para que el
+  # profesor/alumno entienda qué se pierde al trabajar offline.
+  # ---------------------------------------------------------------------
+  # - name: crt.sh              # Certificate Transparency
+  # - name: RapidDNS            # Surtido de subdominios
+  # - name: HackerTarget        # API de hostsearch
+  # - name: VirusTotal
+  # - name: SecurityTrails
+  # - name: Shodan
+  # - name: Bing
+  # - name: DuckDuckGo
+  # - name: Wayback             # archive.org
+  # - name: DNSRepo
+  # - name: BinaryEdge
+  # - name: LeakIX
+  # - name: AlienVault
+  # - name: BuiltWith
+  # - name: Chaos
+  # - name: DNSDB
+  # - name: IPinfo
+  # - name: Netlas
+  # - name: WhoisXMLAPI
+  # - name: FOFA
+  # - name: ZoomEye
+  # - name: GitHub
+  # - name: GitLab
+  # - name: IntelX
+  # - name: PublicWWW
+  # - name: URLScan
+  # - name: Yandex
+  # - name: ZETAlytics
+  # - name: 360PassiveDNS
+  # - name: ASNLookup
+  # - name: BeVigil
+  # - name: BufferOver
+  # - name: CertCentral
+  # - name: Detectify
+  # - name: FullHunt
+  # - name: Hunter
+  # - name: PassiveTotal
+  # - name: PentestTools
+  # - name: GrepApp
+  # - name: Prospect
+  # - name: DNSHistory
+  # - name: Wayback
+  # - name: GLEIF
+  # - name: IPdata
+  # - name: Whois
+  # - name: CIRCL
+
+  # ---------------------------------------------------------------------
+  # SIMULADOR LOCAL: si el profesor añade entradas en /etc/hosts o usa un
+  # proxy con reescritura, se puede habilitar una fuente "custom" para
+  # apuntar al mock OSINT de 192.168.56.102. Véase NOTAS-PASIVO.md.
+  # ---------------------------------------------------------------------
+  # - name: OSINT-Mock
+  #   ttl: 1440
+  #   creds:
+  #     account:
+  #       username: lab
+  #       password: lab

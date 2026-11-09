@@ -1,0 +1,17 @@
+[
+  {
+    "issuer_name": "C=CO, O=Universidad de Antioquia Labs, CN=Lab CA",
+    "common_name": "*.lab.local",
+    "name_value": "\n*.lab.local\nwww.lab.local\ndev.lab.local\nstaging.lab.local\nvpn.lab.local\njenkins.lab.local\ngitlab.lab.local\ngrafana.lab.local\napi.lab.local\nold.lab.local"
+  },
+  {
+    "issuer_name": "C=CO, O=Universidad de Antioquia Labs, CN=Lab CA",
+    "common_name": "lab.local",
+    "name_value": "\nlab.local\nmail.lab.local\nqa.lab.local\nuat.lab.local\npreprod.lab.local\nadmin.lab.local\nportal.lab.local\nkibana.lab.local\nbeta.lab.local\nsandbox.lab.local\nbackup.lab.local\nsipserver.lab.local"
+  },
+  {
+    "issuer_name": "C=CO, O=Universidad de Antioquia Labs, CN=Lab Legacy CA",
+    "common_name": "old.lab.local",
+    "name_value": "\nold.lab.local\nlegacy.lab.local\nbackup.lab.local"
+  }
+]

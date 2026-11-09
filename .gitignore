@@ -1,0 +1,28 @@
+# Datos generados por las ejecuciones del laboratorio
+results/
+lab-infra/results/
+lab-infra/configs/asset.db
+lab-infra/configs/asset.db-shm
+lab-infra/configs/asset.db-wal
+lab-infra/configs/session-*
+lab-infra/configs/*.log
+lab-infra/configs/namelist.txt
+lab-infra/configs/alterations.txt
+lab-infra/configs/datasources.yaml.bak
+
+# Presentación: fuentes sí se versionan, artefactos de build no
+slides/node_modules/
+slides/output/*.pdf
+slides/output/slide-*.png
+slides/output/slide-*-preview.pptx
+node_modules/
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Editores
+.vscode/
+.idea/

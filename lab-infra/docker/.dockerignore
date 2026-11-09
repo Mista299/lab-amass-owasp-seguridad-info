@@ -1,0 +1,6 @@
+configs/
+wordlists/
+*.log
+*.db
+*.db-shm
+*.db-wal

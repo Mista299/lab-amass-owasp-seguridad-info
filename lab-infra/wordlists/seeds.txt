@@ -1,0 +1,13 @@
+www.lab.local
+dev.lab.local
+staging.lab.local
+qa.lab.local
+admin.lab.local
+vpn.lab.local
+jenkins.lab.local
+gitlab.lab.local
+grafana.lab.local
+api.lab.local
+old.lab.local
+test.lab.local
+nonexistent.lab.local

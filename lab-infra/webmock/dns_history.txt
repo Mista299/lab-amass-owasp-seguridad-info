@@ -1,0 +1,6 @@
+2026-09-01  lab.local        A  192.168.56.101
+2026-09-01  www.lab.local    A  192.168.56.103
+2026-10-15  staging.lab.local A 192.168.56.103
+2026-10-15  qa.lab.local    A  192.168.56.104
+2026-11-01  old.lab.local   A  192.168.56.110
+2026-11-01  legacy.lab.local CNAME old.lab.local

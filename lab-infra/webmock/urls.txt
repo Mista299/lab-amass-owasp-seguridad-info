@@ -1,0 +1,12 @@
+https://www.lab.local/
+https://www.lab.local/admin
+https://dev.lab.local/
+https://staging.lab.local/
+https://vpn.lab.local/
+https://jenkins.lab.local/
+https://gitlab.lab.local/
+https://grafana.lab.local/
+https://api.lab.local/v1/health
+https://old.lab.local/
+https://old.lab.local/backup
+http://192.168.56.103/

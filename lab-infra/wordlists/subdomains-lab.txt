@@ -1,0 +1,12 @@
+www
+mail
+dev
+staging
+qa
+admin
+vpn
+jenkins
+gitlab
+grafana
+api
+old

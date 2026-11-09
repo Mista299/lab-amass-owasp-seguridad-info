@@ -1,0 +1,80 @@
+# Zona DNS autoritativa del laboratorio — dominio ficticio "lab.local"
+# Formato: RFC 1035. Creado con 'named-checkzone' antes de cargar.
+#
+# Este archivo lo usa el servidor BIND9 en la VM "dns-authoritative".
+# NUNCA debe apuntar a un dominio real. 'lab.local' es un TLD reservado
+# para pruebas y no se resuelve en Internet.
+
+$TTL 604800
+@       IN  SOA ns1.lab.local. hostmaster.lab.local. (
+                2026110901 ; Serial  (YYYYMMDDnn)
+                604800    ; Refresh
+                86400     ; Retry
+                2419200   ; Expire
+                604800 )  ; Negative TTL
+@       IN  NS  ns1.lab.local.
+
+; --- Servidor de nombres ----------------------------------------------------
+ns1     IN  A   192.168.56.101
+
+; --- Dominio raíz del laboratorio ------------------------------------------
+lab.local.       IN  A   192.168.56.101
+
+; --- Objetivo principal: Metasploitable 3 ----------------------------------
+; HTTP/HTTPS accesibles => Amass detectará el servicio en 80 y 443.
+www             IN  A   192.168.56.103
+mail            IN  A   192.168.56.103
+www2           IN  A   192.168.56.103
+
+; --- Entornos de desarrollo/pruebas (hallazgos críticos del laboratorio) ----
+dev             IN  A   192.168.56.103
+staging         IN  A   192.168.56.103
+qa              IN  A   192.168.56.104
+uat             IN  A   192.168.56.104
+preprod         IN  A   192.168.56.104
+
+; --- Administración y acceso remoto ----------------------------------------
+admin           IN  A   192.168.56.105
+portal          IN  A   192.168.56.105
+vpn             IN  A   192.168.56.106
+
+; --- CI/CD y repositorios --------------------------------------------------
+jenkins         IN  A   192.168.56.107
+gitlab          IN  A   192.168.56.107
+
+; --- Observabilidad ---------------------------------------------------------
+grafana         IN  A   192.168.56.108
+kibana          IN  A   192.168.56.108
+
+; --- APIs y betas -----------------------------------------------------------
+api             IN  A   192.168.56.109
+beta            IN  A   192.168.56.109
+sandbox         IN  A   192.168.56.109
+
+; --- Activos residuales (deuda técnica) ------------------------------------
+old             IN  A   192.168.56.110
+backup          IN  A   192.168.56.110
+
+; --- Aliases CNAME: herramientas para correlacionar en el grafo -------------
+intranet        IN  CNAME portal.lab.local.
+secure          IN  CNAME vpn.lab.local.
+ci              IN  CNAME jenkins.lab.local.
+scm             IN  CNAME gitlab.lab.local.
+metrics         IN  CNAME grafana.lab.local.
+logs            IN  CNAME kibana.lab.local.
+preview         IN  CNAME beta.lab.local.
+legacy          IN  CNAME old.lab.local.
+
+; --- Registros de infraestructura que Amass también correlaciona -----------
+@               IN  MX  10 mail.lab.local.
+@               IN  TXT "v=spf1 mx -all"
+@               IN  NS  ns1.lab.local.
+lab.local.      IN  SOA ns1.lab.local. hostmaster.lab.local. (
+                2026110901 604800 86400 2419200 604800 )
+
+; --- Registros SRV (descubiertos por el plugin DNS-Subdomains) ---------------
+_sip._tcp       IN  SRV 10 10 5060 sipserver.lab.local.
+sipserver       IN  A   192.168.56.111
+
+; --- Puntero inverso (plugin DNS-Reverse) ----------------------------------
+; La zona inversa 56.168.192.in-addr.arpa se define en db.192.168.56

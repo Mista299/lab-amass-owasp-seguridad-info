@@ -1,0 +1,17 @@
+FROM owaspamass/amass:latest
+
+USER root
+# iptables  → reglas DNAT/SNAT + DROP
+# wget     → health check del motor
+# bind-tools → nslookup/dig para las verificaciones del laboratorio
+# iproute2 → detectar la IP del contenedor
+# curl     → pruebas de conectividad
+RUN apk add --no-cache iptables bash wget bind-tools iproute2 curl jq sqlite
+
+COPY dnat-setup.sh /usr/local/bin/dnat-setup.sh
+COPY run-amass.sh /usr/local/bin/run-amass.sh
+COPY resolvers.txt /etc/amass-resolvers.txt
+RUN chmod +x /usr/local/bin/dnat-setup.sh /usr/local/bin/run-amass.sh
+
+ENTRYPOINT ["/usr/local/bin/dnat-setup.sh"]
+CMD ["/bin/enum"]

@@ -1,0 +1,44 @@
+scope:
+  domains:
+    - lab.local
+  ports:
+    - 80
+    - 443
+options:
+  active: true
+  bruteforce:
+    enabled: true
+    wordlists:
+      - "/wl/subdomains-lab.txt"
+  alterations:
+    enabled: false
+  default_transform_values:
+    ttl: 1440
+    confidence: 50
+    priority: 5
+transformations:
+  FQDN->ALL:
+    ttl: 1440
+    confidence: 50
+  FQDN->DomainRecord:
+    ttl: 43200
+  FQDN->DNS:
+    ttl: 1440
+    confidence: 100
+  IPAddress->ALL:
+    ttl: 1440
+    confidence: 50
+  Service->ALL:
+    ttl: 1440
+    confidence: 100
+  TLSCertificate->ALL:
+    ttl: 1440
+    confidence: 100
+  URL->ALL:
+    ttl: 1440
+  DomainRecord->ALL:
+    ttl: 43200
+  Netblock->ALL:
+    ttl: 43200
+  AutonomousSystem->ALL:
+    ttl: 43200

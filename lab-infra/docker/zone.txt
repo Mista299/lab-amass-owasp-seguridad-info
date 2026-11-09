@@ -1,0 +1,35 @@
+lab.local A 192.168.56.101
+lab.local NS ns1.lab.local
+ns1.lab.local A 192.168.56.101
+www.lab.local A 192.168.56.103
+mail.lab.local A 192.168.56.103
+dev.lab.local A 192.168.56.103
+staging.lab.local A 192.168.56.103
+qa.lab.local A 192.168.56.104
+uat.lab.local A 192.168.56.104
+preprod.lab.local A 192.168.56.104
+admin.lab.local A 192.168.56.105
+portal.lab.local A 192.168.56.105
+vpn.lab.local A 192.168.56.106
+jenkins.lab.local A 192.168.56.107
+gitlab.lab.local A 192.168.56.107
+grafana.lab.local A 192.168.56.108
+kibana.lab.local A 192.168.56.108
+api.lab.local A 192.168.56.109
+beta.lab.local A 192.168.56.109
+sandbox.lab.local A 192.168.56.109
+old.lab.local A 192.168.56.110
+backup.lab.local A 192.168.56.110
+sipserver.lab.local A 192.168.56.111
+intranet.lab.local CNAME portal.lab.local
+secure.lab.local CNAME vpn.lab.local
+ci.lab.local CNAME jenkins.lab.local
+scm.lab.local CNAME gitlab.lab.local
+metrics.lab.local CNAME grafana.lab.local
+logs.lab.local CNAME kibana.lab.local
+preview.lab.local CNAME beta.lab.local
+legacy.lab.local CNAME old.lab.local
+_sip._tcp.lab.local SRV 10 10 5060 sipserver.lab.local
+bgp.tools A 192.168.66.101
+lab.local NS ns1.lab.local
+lab.local MX 10 mail.lab.local

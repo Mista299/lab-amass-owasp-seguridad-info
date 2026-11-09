@@ -1,0 +1,34 @@
+# =============================================================================
+# alterations-lab.txt — Palabras para generación de nombres alternativos
+# (plugin FQDN-Alterations). El laboratorio puede Demonstrate cómo Amass
+# muta un nombre conocido para descubrir variantes: dev, dev01, dev1, etc.
+# =============================================================================
+
+dev
+test
+stage
+staging
+qa
+uat
+preprod
+prod
+admin
+portal
+vpn
+ci
+jenkins
+gitlab
+grafana
+kibana
+api
+app
+www
+mail
+old
+new
+backup
+beta
+demo
+sandbox
+internal
+intranet

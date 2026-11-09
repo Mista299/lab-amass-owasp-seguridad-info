@@ -1,0 +1,5 @@
+FROM python:3.12-alpine
+RUN pip install --no-cache dnspython
+WORKDIR /app
+COPY dns_server.py zone.txt /app/
+CMD ["sh","-c","python3 dns_server.py 53 /app/zone.txt --verbose"]

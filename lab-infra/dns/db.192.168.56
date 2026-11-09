@@ -1,0 +1,20 @@
+# Zona DNS inversa del laboratorio — 192.168.56.0/24
+# Permite que Amass resuelva PTR y correlacione IP -> nombre.
+# Se carga en la VM "dns-authoritative".
+
+$TTL 604800
+@       IN  SOA ns1.lab.local. hostmaster.lab.local. (
+                2026110901 604800 86400 2419200 604800 )
+@       IN  NS  ns1.lab.local.
+
+101     IN  PTR ns1.lab.local.
+102     IN  PTR dns.lab.local.
+103     IN  PTR www.lab.local.
+104     IN  PTR qa.lab.local.
+105     IN  PTR portal.lab.local.
+106     IN  PTR vpn.lab.local.
+107     IN  PTR jenkins.lab.local.
+108     IN  PTR grafana.lab.local.
+109     IN  PTR api.lab.local.
+110     IN  PTR old.lab.local.
+111     IN  PTR sipserver.lab.local.
