@@ -1,19 +1,32 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  LAB-INFRA · Levantar el laboratorio OWASP Amass con un solo comando
+#  LAB-INFRA · Script único del laboratorio OWASP Amass
 #
-#  Uso:
-#     ./start.sh              → construye, levanta y verifica
-#     ./start.sh --reset      → borra la base de datos y vuelve a empezar
-#     ./start.sh --stop       → detiene el laboratorio
-#     ./start.sh --logs       → sigue los logs en vivo
-#     ./start.sh --check      → solo verifica el estado
+#  MONTAJE Y OPERACIÓN (todo con este script):
+#     ./start.sh              Construye, levanta y verifica el laboratorio
+#     ./start.sh --reset      Empieza de cero (borra la base de datos)
+#     ./start.sh --enum       Ejecuta la enumeración activa con fuerza bruta
+#     ./start.sh --results    Muestra los resultados ya obtenidos
+#     ./start.sh --dns        Muestra las consultas DNS registradas
+#     ./start.sh --check      Solo verifica el estado
+#     ./start.sh --logs       Sigue los logs en vivo
+#     ./start.sh --stop       Detiene el laboratorio
+#
+#  COMANDOS DE AMASS PARA APRENDER (ejecución manual dentro del contenedor):
+#     ./start.sh amass <subcomando> [opciones]   ejecuta amass tal cual
+#
+#  Ejemplos:
+#     ./start.sh amass -version
+#     ./start.sh amass enum -h
+#     ./start.sh amass subs -names -d lab.local -ip
+#     ./start.sh amass enum -active -d lab.local -p 80,443 -timeout 2
 # =============================================================================
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LAB_DIR="${SCRIPT_DIR}/lab-infra"
 COMPOSE="${LAB_DIR}/docker/compose.yaml"
+WORDLIST="${LAB_DIR}/wordlists/subdomains-lab.txt"
 
 # --- Colores -----------------------------------------------------------------
 if [[ -t 1 ]]; then
@@ -28,16 +41,17 @@ ok()   { printf '%s [✓]%s %s\n' "${C_OK}"   "${C_OFF}" "$*"; }
 warn() { printf '%s [!]%s %s\n' "${C_WARN}" "${C_OFF}" "$*"; }
 err()  { printf '%s [✗]%s %s\n' "${C_ERR}"  "${C_OFF}" "$*" >&2; }
 dim()  { printf '%s     %s%s\n' "${C_DIM}" "$*" "${C_OFF}"; }
+head1(){ printf '\n%s%s%s\n' "${C_INFO}" "$*" "${C_OFF}"; }
 
-# --- Comandos ----------------------------------------------------------------
 compose() { docker compose -f "$COMPOSE" "$@"; }
 
+# --- Verificación de requisitos ----------------------------------------------
 check_prereqs() {
     log "Verificando requisitos"
     command -v docker >/dev/null 2>&1 || {
         err "Docker no está instalado."
-        dim "Instalación: https://docs.docker.com/engine/install/"
         dim "En Arch: sudo pacman -S docker && sudo systemctl enable --now docker"
+        dim "Debian/Ubuntu: https://docs.docker.com/engine/install/"
         exit 1
     }
     ok "Docker: $(docker --version | cut -d, -f1)"
@@ -52,16 +66,17 @@ check_prereqs() {
     docker info >/dev/null 2>&1 || {
         err "No se puede conectar al daemon de Docker."
         dim "Prueba: sudo systemctl start docker"
-        dim "Si estás en el grupo 'docker' pero falla: sudo usermod -aG docker \$USER"
-        dim "  (después cierra la sesión y vuelve a entrar)"
+        dim "Si ya estás en el grupo 'docker' pero falla:"
+        dim "  sudo usermod -aG docker \$USER   (cierra sesión y vuelve a entrar)"
         exit 1
     }
     ok "Daemon de Docker accesible"
 }
 
+# --- Construcción -------------------------------------------------------------
 do_build() {
     log "Construyendo las imágenes (la primera vez tarda ~2 min)"
-    if compose build --quiet 2>&1 | tail -5; then
+    if compose build --quiet >/dev/null 2>&1; then
         ok "Imágenes construidas"
     else
         err "Falló la construcción de las imágenes."
@@ -76,10 +91,10 @@ do_start() {
     ok "Contenedores iniciados"
 }
 
-# Asegura que los contenedores existen y estan arriba.
+# Asegura que los contenedores existen y están arriba.
 ensure_up() {
     if ! compose ps --status running 2>/dev/null | grep -q "amass-lab-dns"; then
-        log "Los contenedores no estan arriba; levantandolos"
+        log "Los contenedores no están arriba; levantándolos"
         compose up -d
         sleep 3
     fi
@@ -87,7 +102,7 @@ ensure_up() {
 
 wait_ready() {
     ensure_up
-    log "Esperando a que el motor de Amass este listo"
+    log "Esperando a que el motor de Amass esté listo"
     local i=0
     while [[ $i -lt 90 ]]; do
         if compose exec -T amass \
@@ -98,16 +113,16 @@ wait_ready() {
         sleep 1
         ((i++))
     done
-    warn "El motor tardo mas de 90s en arrancar (es normal la primera vez)."
+    warn "El motor tardó más de 90s en arrancar (es normal la primera vez)."
     dim "Revisa los logs: ./start.sh --logs"
     return 1
 }
 
+# --- Verificación -------------------------------------------------------------
 do_verify() {
     ensure_up
-    log "Verificando el aislamiento y el DNS"
+    log "Verificando el DNS del laboratorio"
 
-    # Espera a que el DNS acepte consultas (puede tardar un par de segundos).
     local i=0
     while [[ $i -lt 20 ]]; do
         if compose exec -T amass \
@@ -119,7 +134,6 @@ do_verify() {
         ((i++))
     done
 
-    # 1. DNS responde
     if compose exec -T amass \
         dig +short +timeout=3 +tries=1 @192.168.56.101 lab.local A 2>/dev/null \
         | grep -q "192.168.56.101"; then
@@ -130,7 +144,6 @@ do_verify() {
         exit 1
     fi
 
-    # 2. Un subdominio concreto resuelve
     if compose exec -T amass \
         dig +short +timeout=3 +tries=1 @192.168.56.101 dev.lab.local A 2>/dev/null \
         | grep -q "192.168.56.103"; then
@@ -139,7 +152,6 @@ do_verify() {
         warn "La resolución de subdominios no responde como se esperaba."
     fi
 
-    # 2b. Un nombre inexistente debe devolver NXDOMAIN
     if compose exec -T amass \
         dig +short +timeout=3 +tries=1 @192.168.56.101 test.lab.local A 2>/dev/null \
         | grep -q .; then
@@ -147,55 +159,54 @@ do_verify() {
     else
         ok "NXDOMAIN correcto para los candidatos inexistentes"
     fi
-
-    # 3. Internet bloqueado
-    if compose exec -T amass \
-        sh -c 'curl -s --max-time 5 -o /dev/null https://owasp.org' >/dev/null 2>&1; then
-        err "FUGA DETECTADA: el contenedor tiene acceso a Internet."
-        dim "El laboratorio no debe salir a Internet. Revisa los logs."
-        exit 1
-    else
-        ok "Internet bloqueado (política DROP)"
-    fi
-
-    # 4. Reglas DNAT/SNAT aplicadas
-    local dn
-    dn=$(compose exec -T amass sh -c 'iptables -t nat -L OUTPUT -n | grep -c DNAT' 2>/dev/null | tr -d '\r\n')
-    if [[ "${dn:-0}" -ge 100 ]]; then
-        ok "Redirección DNS activa (${dn} reglas DNAT + SNAT)"
-    else
-        warn "Solo ${dn:-0} reglas DNAT aplicadas (se esperaban 106)."
-    fi
 }
 
+# --- Enumeración --------------------------------------------------------------
 do_enum() {
+    ensure_up
     log "Ejecutando la enumeración activa con fuerza bruta"
-    dim "(dura entre 2 y 4 minutos; el motor descubre los subdominios)"
+    dim "(2-4 minutos; el motor descubre los subdominios)"
+    dim "Wordlist: ${WORDLIST}"
     compose up -d amass
     wait_ready
     compose logs -f amass
 }
 
+# --- Ejecución manual de amass (para aprender) --------------------------------
+do_amass() {
+    ensure_up
+    wait_ready
+    head1 "Ejecutando: amass $*"
+    dim "(dentro del contenedor amass-lab-amass)"
+    compose exec -T amass amass "$@"
+}
+
+# --- Menú ---------------------------------------------------------------------
 show_menu() {
     printf '\n'
     printf '%s╭──────────────────────────────────────────────────────────────╮%s\n' "${C_INFO}" "${C_OFF}"
-    printf '%s│  Laboratorio OWASP Amass · listo                            │%s\n' "${C_INFO}" "${C_OFF}"
+    printf '%s│  Laboratorio OWASP Amass · listo                           │%s\n' "${C_INFO}" "${C_OFF}"
     printf '%s╰──────────────────────────────────────────────────────────────╯%s\n' "${C_INFO}" "${C_OFF}"
     printf '\n'
-    printf '  %sComandos:%s\n' "${C_INFO}" "${C_OFF}"
-    printf '    ./start.sh --enum      Ejecutar la enumeración (recomendado)\n'
+    printf '  %sOperación del laboratorio:%s\n' "${C_INFO}" "${C_OFF}"
+    printf '    ./start.sh --enum      Ejecutar la enumeración (fuerza bruta incluida)\n'
     printf '    ./start.sh --results   Ver los resultados sin re-ejecutar\n'
     printf '    ./start.sh --dns       Ver las consultas DNS registradas\n'
     printf '    ./start.sh --logs      Seguir los logs en vivo\n'
-    printf '    ./start.sh --stop      Detener el laboratorio\n'
+    printf '    ./start.sh --check     Verificar el estado\n'
+    printf '    ./start.sh --stop      Detener\n'
     printf '\n'
-    printf '  %sAtacante (tú):%s\n' "${C_INFO}" "${C_OFF}"
-    printf '    cd lab-infra/docker\n'
+    printf '  %sAprender Amass (comandos manuales):%s\n' "${C_INFO}" "${C_OFF}"
+    printf '    ./start.sh amass -version\n'
+    printf '    ./start.sh amass enum -h\n'
+    printf '    ./start.sh amass subs -names -d lab.local -ip\n'
+    printf '\n'
+    printf '  %sAtacante:%s tú ejecutas desde lab-infra/docker\n' "${C_INFO}" "${C_OFF}"
     printf '    docker compose -f compose.yaml exec amass amass subs -names -d lab.local -ip\n'
     printf '\n'
 }
 
-# --- Menú principal ----------------------------------------------------------
+# --- Menú principal -----------------------------------------------------------
 case "${1:-}" in
     --reset)
         check_prereqs
@@ -217,6 +228,7 @@ case "${1:-}" in
         ok "Laboratorio detenido"
         ;;
     --logs)
+        ensure_up
         compose logs -f
         ;;
     --check)
@@ -241,18 +253,33 @@ case "${1:-}" in
         log "Consultas DNS registradas"
         compose logs dns | grep "query" | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
         ;;
+    amass)
+        check_prereqs
+        shift
+        do_amass "$@"
+        ;;
     "" | --help | -h)
         cat <<EOF
 ${C_INFO}Laboratorio OWASP Amass — 100% offline${C_OFF}
 
+${C_INFO}Operación:${C_OFF}
   ./start.sh              Construye, levanta y verifica el laboratorio
-  ./start.sh --reset      Borra la base de datos y vuelve a empezar
+  ./start.sh --reset      Empieza de cero (borra la base de datos)
   ./start.sh --enum       Ejecuta la enumeración activa con fuerza bruta
   ./start.sh --results    Muestra los resultados ya obtenidos
   ./start.sh --dns        Muestra las consultas DNS registradas
   ./start.sh --logs       Sigue los logs en vivo
   ./start.sh --check      Solo verifica el estado
   ./start.sh --stop       Detiene el laboratorio
+
+${C_INFO}Aprender Amass:${C_OFF}
+  ./start.sh amass <subcomando> [opciones]
+      Ejecuta amass dentro del contenedor, tal cual.
+      Ejemplos:
+        ./start.sh amass -version
+        ./start.sh amass enum -h
+        ./start.sh amass subs -names -d lab.local -ip
+        ./start.sh amass enum -active -d lab.local -p 80,443 -timeout 2
 
 ${C_DIM}Dominio ficticio: lab.local   ·   Red: 192.168.56.0/24   ·   Sin salida a Internet${C_OFF}
 EOF

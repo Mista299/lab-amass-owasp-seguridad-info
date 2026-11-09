@@ -34,6 +34,9 @@ services:
       - LAB_NET=192.168.56.0/24
       - DOMAIN=lab.local
       - AMASS_ENGINE_URL=http://127.0.0.1:4000
+      # Mantiene el motor vivo despues de la enumeracion para poder consultar
+      # los resultados desde otra terminal durante la demostracion.
+      - LAB_KEEP_ALIVE=1
     networks:
       labnet:
         ipv4_address: 192.168.56.100

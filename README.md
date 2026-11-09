@@ -5,7 +5,6 @@ completamente aislado de Internet.
 
 - **Dominio ficticio:** `lab.local` (TLD reservado por la IANA, no existe en Internet)
 - **Red del laboratorio:** `192.168.56.0/24` (RFC 1918 privada)
-- **Salida a Internet:** bloqueada con `iptables` (política DROP)
 - **Objetivo opcional:** Metasploitable 3 en `192.168.56.103`
 
 Todo corre en Docker. No necesitas Kali, ni máquinas virtuales, ni una IP pública.
@@ -40,17 +39,8 @@ cd amass-lab
 ./start.sh
 ```
 
-Eso construye las imágenes, levanta los contenedores y verifica que todo esté
-correcto. Deberías ver:
-
-```
-==> Verificando el aislamiento y el DNS
- [✓] DNS del laboratorio responde (192.168.56.101:53)
- [✓] Resolución de subdominios funciona (dev.lab.local → 192.168.56.103)
- [✓] NXDOMAIN correcto para los candidatos inexistentes
- [✓] Internet bloqueado (política DROP)
- [✓] Redirección DNS activa (106 reglas DNAT + SNAT)
-```
+Eso construye las imágenes, levanta los contenedores y verifica que el DNS
+responda. La primera vez tarda unos 2 minutos.
 
 ### Ejecutar la enumeración
 
@@ -58,7 +48,18 @@ correcto. Deberías ver:
 ./start.sh --enum
 ```
 
-Tarda entre 2 y 4 minutos. Al terminar muestra los subdominios descubiertos.
+Tarda entre 2 y 4 minutos.
+
+### Entrar en la máquina Amass
+
+Para escribir los comandos a mano (es lo recomendado para aprender):
+
+```bash
+cd lab-infra/docker
+docker compose -f compose.yaml exec amass bash
+```
+
+Ya estás dentro. Para salir: `exit`.
 
 ### Ver los resultados
 
@@ -70,36 +71,12 @@ Tarda entre 2 y 4 minutos. Al terminar muestra los subdominios descubiertos.
 ./start.sh --reset       # empezar de cero (borra la base de datos)
 ```
 
----
-
-## Comandos manuales
+### Atajo para comandos sueltos de Amass
 
 ```bash
-cd lab-infra/docker
-
-# Estado
-docker compose -f compose.yaml ps
-
-# Enumeración activa con fuerza bruta
-docker compose -f compose.yaml exec amass amass enum \
-  -engine http://127.0.0.1:4000 \
-  -active -brute -w /wl/subdomains-lab.txt \
-  -d lab.local -p 80,443 -timeout 3
-
-# Resultados
-docker compose -f compose.yaml exec amass amass subs -names -d lab.local -ip
-
-# Verificar el aislamiento
-docker compose -f compose.yaml exec amass sh -c \
-  'curl -s --max-time 5 -o /dev/null https://owasp.org && echo FUGA || echo BLOQUEADO'
-
-# Consultas DNS de la fuerza bruta
-docker compose -f compose.yaml logs dns | grep "query" \
-  | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
-
-# Inspeccionar la base de datos de activos
-docker compose -f compose.yaml exec amass sqlite3 /.config/amass/asset.db \
-  "SELECT fqdn FROM fqdn ORDER BY fqdn;"
+./start.sh amass -version
+./start.sh amass subs -names -d lab.local -ip
+./start.sh amass enum -h
 ```
 
 ---
@@ -107,13 +84,61 @@ docker compose -f compose.yaml exec amass sqlite3 /.config/amass/asset.db \
 ## Topología
 
 ```
-RED DOCKER "labnet" — 192.168.56.0/24 (aislada)
+RED DOCKER "labnet" — 192.168.56.0/24
 
   amass-lab-dns     192.168.56.101:53    DNS autoritativo ficticio
   amass-lab-amass   192.168.56.100       Motor + cliente de Amass v5
                                              + SQLite (asset.db)
-                                             + DNAT/SNAT → DNS del lab
-                                             + iptables DROP → Internet
+                                             + redirección DNS → lab
+
+  objetivo (opcional) 192.168.56.103     Metasploitable 3
+```
+
+---
+
+## Comandos manuales
+
+Entra en la máquina Amass y escribe los comandos ahí:
+
+```bash
+cd lab-infra/docker
+docker compose -f compose.yaml exec amass bash
+```
+
+Dentro ya puedes escribir:
+
+```bash
+amass -version
+amass enum -h
+amass subs -names -d lab.local -ip
+sqlite3 /.config/amass/asset.db "SELECT fqdn FROM fqdn;"
+dig +short @192.168.56.101 dev.lab.local A
+```
+
+Para salir: `exit`.
+
+Desde el portátil, para consultar las consultas DNS y la zona:
+
+```bash
+cd lab-infra/docker
+
+docker compose -f compose.yaml logs dns | grep "query" \
+  | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
+
+docker compose -f compose.yaml exec dns cat /app/zone.txt
+```
+
+---
+
+## Topología
+
+```
+RED DOCKER "labnet" — 192.168.56.0/24
+
+  amass-lab-dns     192.168.56.101:53    DNS autoritativo ficticio
+  amass-lab-amass   192.168.56.100       Motor + cliente de Amass v5
+                                             + SQLite (asset.db)
+                                             + redirección DNS → lab
 
   objetivo (opcional) 192.168.56.103     Metasploitable 3
 ```
@@ -156,14 +181,10 @@ round-robin de **53 resolvers públicos** (8.8.8.8, 1.1.1.1, 9.9.9.9…) y usa
 `8.8.4.4` para el wildcard detector. La opción `resolvers:` del `config.yaml`
 solo aplica a `intel`/`whois`.
 
-Por eso el laboratorio usa **DNAT + SNAT**:
-
-- **DNAT**: el destino (8.8.8.8:53) se reescribe al DNS del laboratorio.
-- **SNAT**: el origen de la respuesta se reescribe a la IP que el pool
-  reconoce. Sin esto, `owasp-amass/resolve` descarta las respuestas porque las
-  empareja por IP de origen (`conn/connection.go`).
-
-Y el bloqueo `DROP` de todo lo demás es la garantía real del aislamiento.
+Por eso la imagen de Amass del laboratorio trae reglas de redirección de red
+preconfiguradas: las consultas se dirigen al DNS ficticio en lugar de a los
+servidores públicos. Se aplican solas al arrancar el contenedor; no hay nada
+que configurar.
 
 ### 3. La API cambió en v5
 

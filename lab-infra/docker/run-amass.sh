@@ -64,5 +64,16 @@ echo "# RESULTADOS  (amass subs -names -ip)"
 echo "############################################################"
 amass subs -names -d "${DOMAIN}" -ip 2>&1 | sed 's/^/  /'
 
+# Si LAB_KEEP_ALIVE=1, el motor sigue vivo para permitir consultas
+# posteriores desde otra terminal (modo demostracion en vivo).
+if [ "${LAB_KEEP_ALIVE:-0}" = "1" ]; then
+    echo ""
+    echo "[lab] motor activo. Para salir: Ctrl+C"
+    echo "[lab] en otra terminal:"
+    echo "[lab]   docker compose -f compose.yaml exec amass amass subs -names -d ${DOMAIN} -ip"
+    wait "$ENGINE_PID"
+    exit $RC
+fi
+
 kill "$ENGINE_PID" 2>/dev/null || true
 exit $RC
