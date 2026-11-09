@@ -317,6 +317,27 @@ docker compose -f compose.yaml logs dns | grep query | \
 
 ## Plan B — Si algo falla
 
+### Material de respaldo (en `lab-infra/imgs/`)
+
+Si el PowerPoint no abre, el proyector falla o la demo se cuelga, tienes
+capturas **reales** del laboratorio ya generadas:
+
+| Archivo | Qué muestra |
+|---|---|
+| `imgs/demo-1.png` | `amass -version` → v5.1.3 |
+| `imgs/demo-2.png` | El DNS respondiendo y el NXDOMAIN de `test.lab.local` |
+| `imgs/demo-3.png` | Los 14 subdominios con sus IPs (`amass subs`) |
+| `imgs/demo-4.png` | Las consultas DNS registradas (la evidencia de la fuerza bruta) |
+
+Y el PDF de la presentación: `slides/output/OWASP-Amass-Presentacion.pdf`
+(11 páginas, por si el `.pptx` no se abre en el equipo del aula).
+
+> **Cómo usarlo sin que se note:** "Les voy a mostrar una captura de la corrida
+> anterior, porque en esta máquina la enumeración tarda más de lo previsto.
+> Los datos son los mismos."
+
+### Problemas técnicos
+
 | Problema | Qué decir / hacer |
 |---|---|
 | El comando tarda o se cuelga | `Ctrl+C` y sigue. Di: "esto pasa cuando el aula va lenta; el resultado ya está guardado". Luego `./start.sh --results`. |

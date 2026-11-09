@@ -12,7 +12,7 @@ lab-infra/configs/datasources.yaml.bak
 
 # Presentación: fuentes sí se versionan, artefactos de build no
 slides/node_modules/
-slides/output/*.pdf
+slides/output/slide-*.pdf
 slides/output/slide-*.png
 slides/output/slide-*-preview.pptx
 node_modules/

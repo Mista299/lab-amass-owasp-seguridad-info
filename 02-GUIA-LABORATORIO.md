@@ -36,6 +36,7 @@ Aunque los dos corren en Docker, piénsalos como dos máquinas separadas:
 **Conceptos**
 - [Entender el laboratorio · Qué es un DNS](#entender-el-laboratorio--qué-es-un-dns-y-qué-hace-cada-contenedor)
 - [Cómo funciona esto en un entorno real](#cómo-funciona-esto-en-un-entorno-real)
+- [Pruebas contra objetivos reales · Qué es legal y qué no](#pruebas-contra-objetivos-reales--qué-es-legal-y-qué-no)
 
 **Referencia**
 - [Los atajos del script](#los-atajos-del-script)
@@ -649,6 +650,224 @@ permite practicar el mecanismo sin tocar a nadie.
 
 Si el alcance no está por escrito, no hay escaneo que sea legítimo. Y eso no
 lo decide la ethical del analista: lo decide el contrato.
+
+---
+
+## Pruebas contra objetivos reales · Qué es legal y qué no
+
+> Todo lo de esta sección está **verificado empíricamente** en esta máquina
+> (noviembre 2026). Los comandos y sus salidas son reales, no examples.
+>
+> **Lee el bloque de la regla de oro antes de ejecutar nada.**
+
+---
+
+### La regla de oro
+
+> **El alcance se define antes de la herramienta, no después.**
+>
+> "Voy a usar Amass" no es un alcance.
+> "Autorizo el reconocimiento pasivo del dominio X" sí lo es.
+
+Sin autorización escrita, un escaneo no es investigación: es un delito
+informático en la mayoría de legislaciones latinoamericanas (en Colombia,
+Ley 1273 de 2009, y el Decreto 175 de 2015 que tipifica el acceso no
+autorizado a sistemas de información).
+
+**Y esto aplica también a los dominios reservados por la IANA.** Aunque
+`example.com` sea de uso público, la IANA y Cloudflare no autorizan
+escaneos activos contra sus servidores. Que "el objetivo no tenga nada
+interesante" no lo convierte en un objetivo permitido.
+
+---
+
+### Opción 1 (la recomendada) · Tu propio dominio
+
+**Es la única opción 100 % legítima para pruebas activas.**
+
+Si tienes un dominio propio (o puedes registrar uno), puedes hacer
+reconocimiento completo sin riesgo legal ni ethical. Un dominio en
+DigitalOcean, Namecheap o Cloudflare cuesta unos 10 USD al año.
+
+```
+TÚ ──► tu-dominio.com ──► sus propios servidores de nombres
+         (tú controlas todo, y autorizas el escaneo)
+```
+
+Configuración mínima:
+
+1. Un dominio apuntando a un servidor propio (puede ser tu máquina con
+   IP pública o un VPS barato).
+2. Servidores de nombres propios (BIND, PowerDNS o los del proveedor).
+3. Una zona con varios subdominios que representen activos realistas.
+4. Opcional: un certificado TLS real para que las fuentes de Certificate
+   Transparency tengan algo que encontrar.
+
+Con esto puedes practicing el flujo completo: **pasivo, validación, activo,
+fuerza bruta, AXFR** (incluso mal configurado a propósito, para ver cómo
+lo detecta Amass).
+
+> **Es lo que hace este laboratorio, pero con la zona en un contenedor
+> local en vez de en Internet.** La única diferencia es dónde están los
+> servidores de nombres.
+
+---
+
+### Opción 2 (la más segura para practicar pasivo) · Dominios reservados por la IANA
+
+La IANA reserva varios dominios **específicamente para pruebas y
+documentación** ([RFC 6761](https://www.rfc-editor.org/rfc/rfc6761)):
+
+| Dominio | Estado verificado |
+|---|---|
+| `example.com` | Resuelve a 104.20.23.154 (Cloudflare) |
+| `example.org` | Resuelve a 104.20.26.136 |
+| `example.net` | Resuelve a 104.20.21.8 |
+| `test` | Reservado, no resuelve |
+| `invalid` | Reservado, no resuelve |
+| `localhost` | Reservado, siempre local |
+
+**Verificado en esta máquina:**
+
+```
+$ dig +short example.com A
+104.20.23.154
+$ dig +short example.com NS
+elliott.ns.cloudflare.com.
+hera.ns.cloudflare.com.
+```
+
+#### ¿Qué se puede y qué no con ellos?
+
+| Técnica | ¿Se puede? | Verificación |
+|---|---|---|
+| **Pasivo** (OSINT, crt.sh, Wayback) | ✅ **Sí** | Consulta fuentes públicas. No toca el objetivo. |
+| **Validación DNS** de nombres conocidos | ✅ Sí, con moderación | Son consultas normales de DNS |
+| **Fuerza bruta DNS** | ⚠️ **No recomendable** | Miles de consultas a servidores ajenos. Se puede detectar y es descortés. |
+| **Escaneo de puertos** | ❌ **No** | Escanea infraestructura de Cloudflare, no tuya. |
+| **AXFR** | ⚠️ Inofensivo, pero pointless | Verificado: `Transfer failed` (bien configurado) |
+
+#### Pruebas pasivas seguras
+
+Estas **no tocan el objetivo** y son perfectamente legítimas:
+
+```bash
+# 1. Reconocimiento pasivo con Amass (solo fuentes OSINT)
+amass enum -d example.com -timeout 2
+# ⚠️ Tarda: cada plugin externo espera su timeout. Dale 3-5 minutos.
+
+# 2. Lo mismo pero acotando el tiempo
+amass enum -d example.com -timeout 1
+
+# 3. Ver qué fuentes tiene activas
+amass enum -list -d example.com
+
+# 4. Consultar Certificate Transparency directamente (sin Amass)
+curl -s "https://crt.sh/?q=%25.example.com&output=json" | jq -r '.[].name_value' | sort -u
+
+# 5. Wayback Machine
+curl -s "http://archive.org/wayback/available?url=example.com"
+
+# 6. DNS pasivo: qué publica el dominio
+dig example.com NS
+dig example.com MX
+dig example.com TXT
+```
+
+> **Verificación del AXFR** (inofensivo, son 2 peticiones):
+> ```
+> $ dig AXFR example.com @elliott.ns.cloudflare.com
+> ; Transfer failed.
+> ```
+> Correctamente configurado. Amass lo intentará automáticamente en modo
+> activo y obtendrá un refusal, que es un resultado válido.
+
+#### ⚠️ El problema del modo activo con `example.com`
+
+**Verificado:** `amass enum -active -d example.com -p 80,443` **no termina en un
+tiempo razonable**. Las causas:
+
+1. El barrido SRV prueba ~120 prefijos estándar contra los NS de Cloudflare.
+2. Los plugins externos (crt.sh, RapidDNS…) cada uno espera su timeout.
+3. El escaneo de puertos contra una IP de Cloudflare no devuelve nada útil
+   (Cloudflare responde en muchos puertos).
+
+**Conclusión:** el modo activo contra `example.com` es una mala práctica. No
+porque sea ilegal per se, sino porque **no es tu objetivo** y porque
+genera ruido innecesario en infraestructura ajena.
+
+---
+
+### Opción 3 · Bugs bounty y programas de alcance público
+
+Si quieres probar en un objetivo real **y** de forma legal, existen programas
+que dan autorización explícita y pública:
+
+| Programa | Alcance | Qué permite |
+|---|---|---|
+| **HackerOne** |(Number of programs vary) | Reconocimiento en los dominios de cada programa |
+| **Bugcrowd** | Por programa | Igual, con reglas específicas |
+| **Google VRP** | `*.google.com` (parcial) | Reconocimiento passivo y activo controlado |
+| **GitHub Security Lab** | Fuera de alcance | Solo reportar, no escanear |
+
+
+**Reglas de oro de un programa de bug bounty:**
+
+1. **Lee la política del programa.** Cada uno tiene límites distintos.
+2. Identifícate con tu **dirección IP de origen** y tu user agent. Muchos
+   programas exigen un identificador.
+3. **No escanees lo que no está en el alcance.** El scope suele ser una lista
+   explícita de dominios.
+4. **No hagas fuerza bruta masiva** salvo que esté permitido.
+5. **Reporta lo que encuentres**, incluso sin exploitation. El
+   reconocimiento ya es un hallazgo.
+
+Ejemplo de política real (resumida):
+
+```
+Scope:      *.ejemplo.com
+Allowed:    DNS enumeration, certificate transparency
+Not allowed: brute force de subdominios, escaneo de puertos,
+              denegación de servicio, cualquier forma de exploitation
+```
+
+> **Esto es lo más cercano a un trabajo real** y por eso vale la pena
+> mencionarlo: en la industria, la diferencia entre un escáner y un
+> profesional no es la herramienta, es el alcance y la identificación.
+
+---
+
+### Resumen: qué hacer en cada caso
+
+| Si quieres… | Usa | Nivel de riesgo |
+|---|---|---|
+| Practicar la mecánica del laboratorio | `./start.sh --brute` | **Nulo** |
+| Practicar pasivo contra algo real | `example.com` con `-d` | **Nulo** (solo OSINT) |
+| Practicar activo de verdad | **Tu propio dominio** | Nulo (tú autorizas) |
+| Practicar en un programa real | HackerOne / Bugcrowd | Bajo (dentro del scope) |
+| Escaneear sin permiso | Nada | **Delito** |
+
+---
+
+### El código de una autorización, en la práctica
+
+Si en algún momento te contratan o haces un praktikum, la autorización debe
+tener, como mínimo:
+
+```
+1. Identificación del cliente y del objetivo (dominios e IPs exactos)
+2. Explicitación de las técnicas permitidas
+   (OSINT / DNS / AXFR / fuerza bruta / escaneo de puertos)
+3. Fechas de inicio y fin
+4. Restricciones: QPS máximo, horarios, IPs excluidas
+5. Responsabilidad por los daños colaterales
+6. Contacto de emergencia para detener el escaneo
+7. Qué hacer con los datos encontrados (confidencialidad, retención)
+```
+
+Si ese documento no existe, no hay autorización. Un correo informal de
+"mira a ver si mi servidor está expuesto" **no** es autorización para
+escanear: es una petición de servicios.
 
 ---
 
