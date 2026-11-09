@@ -76,8 +76,18 @@ do_start() {
     ok "Contenedores iniciados"
 }
 
+# Asegura que los contenedores existen y estan arriba.
+ensure_up() {
+    if ! compose ps --status running 2>/dev/null | grep -q "amass-lab-dns"; then
+        log "Los contenedores no estan arriba; levantandolos"
+        compose up -d
+        sleep 3
+    fi
+}
+
 wait_ready() {
-    log "Esperando a que el motor de Amass esté listo"
+    ensure_up
+    log "Esperando a que el motor de Amass este listo"
     local i=0
     while [[ $i -lt 90 ]]; do
         if compose exec -T amass \
@@ -88,13 +98,26 @@ wait_ready() {
         sleep 1
         ((i++))
     done
-    warn "El motor tardó más de 90s en arrancar (es normal la primera vez)."
+    warn "El motor tardo mas de 90s en arrancar (es normal la primera vez)."
     dim "Revisa los logs: ./start.sh --logs"
     return 1
 }
 
 do_verify() {
+    ensure_up
     log "Verificando el aislamiento y el DNS"
+
+    # Espera a que el DNS acepte consultas (puede tardar un par de segundos).
+    local i=0
+    while [[ $i -lt 20 ]]; do
+        if compose exec -T amass \
+            dig +short +timeout=2 +tries=1 @192.168.56.101 lab.local A 2>/dev/null \
+            | grep -q "192.168.56.101"; then
+            break
+        fi
+        sleep 1
+        ((i++))
+    done
 
     # 1. DNS responde
     if compose exec -T amass \
@@ -198,6 +221,7 @@ case "${1:-}" in
         ;;
     --check)
         check_prereqs
+        ensure_up
         compose ps
         do_verify
         ;;
@@ -206,12 +230,14 @@ case "${1:-}" in
         do_enum
         ;;
     --results)
+        ensure_up
         log "Resultados almacenados"
         compose exec -T amass amass subs -names -d lab.local -ip 2>/dev/null
         printf '\n'
         dim "Consultas DNS registradas: $(compose logs dns 2>/dev/null | grep -c query)"
         ;;
     --dns)
+        ensure_up
         log "Consultas DNS registradas"
         compose logs dns | grep "query" | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
         ;;
