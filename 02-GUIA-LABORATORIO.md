@@ -23,6 +23,164 @@ Aunque los dos corren en Docker, piénsalos como dos máquinas separadas:
 
 ---
 
+## Índice
+
+**Para operar el laboratorio (usa el script)**
+- [Paso 0 (opcional) · Instalar Amass nativo](#paso-0-opcional--instalar-amass-nativo-en-tu-equipo)
+- [Paso 1 · Montar el laboratorio](#paso-1--montar-el-laboratorio)
+- [Paso 2 · Entrar dentro de la máquina Amass](#paso-2--entrar-dentro-de-la-máquina-amass)
+- [Paso 3 · Comandos de la práctica](#paso-3--comandos-de-la-práctica)
+- [Paso 4 · Experimentos para aprender](#paso-4--experimentos-para-aprender)
+- [Paso 5 · Resumen: dónde se ejecuta cada cosa](#paso-5--resumen-dónde-se-ejecuta-cada-cosa)
+
+**Referencia**
+- [Los atajos del script](#los-atajos-del-script)
+- [La zona del laboratorio](#la-zona-del-laboratorio)
+- [Problemas frecuentes](#problemas-frecuentes)
+- [Dos detalles técnicos](#dos-detalles-técnicos-que-vale-la-pena-conocer)
+
+---
+
+## Paso 0 (opcional) · Instalar Amass nativo en tu equipo
+
+> **¿Hace falta para el laboratorio? No.** El laboratorio ya trae Amass dentro
+> del contenedor Docker y `./start.sh` se encarga de todo.
+>
+> Esta sección es para cuando quieras **aprender Amass en tu propia máquina**,
+> fuera del laboratorio. Ten en cuenta que Amass instalado de forma nativa
+> **sí sale a Internet**: consulta fuentes OSINT públicas (crt.sh, RapidDNS,
+> HackerTarget…) y resuelve con servidores DNS públicos.
+
+### En Arch Linux
+
+#### Opción A — Binario oficial (rápido, sin compilar)
+
+```bash
+cd /tmp
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_linux_amd64.tar.gz
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_checksums.txt
+
+# Verificar la integridad del archivo
+sha256sum -c amass_checksums.txt --ignore-missing
+
+# Descomprimir e instalar
+tar xzf amass_linux_amd64.tar.gz
+sudo install -m 755 amass_linux_amd64/amass /usr/local/bin/amass
+
+# Limpiar
+rm -rf amass_linux_amd64 amass_linux_amd64.tar.gz amass_checksums.txt
+```
+
+> En ARM (Raspberry Pi, laptops ARM) cambia `amass_linux_amd64.tar.gz` por
+> `amass_linux_arm64.tar.gz`.
+
+##### Alternativa sin sudo (instalar en tu carpeta personal)
+
+```bash
+mkdir -p ~/.local/bin
+cd /tmp
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_linux_amd64.tar.gz
+tar xzf amass_linux_amd64.tar.gz
+install -m 755 amass_linux_amd64/amass ~/.local/bin/amass
+
+# Asegura que ~/.local/bin está en el PATH
+grep -q 'HOME/.local/bin' ~/.bashrc || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Comprobar
+which amass && amass -version
+```
+
+> `~/.local/bin` ya viene en el `PATH` por defecto en Arch. Si `which amass`
+> no lo encuentra tras instalar, es que tu `~/.bashrc` no lo incluye: agrega
+> la línea del `export` de arriba.
+
+#### Opción B — AUR
+
+```bash
+# Con yay (o cualquier helper de AUR)
+yay -S amass-bin
+
+# O manualmente con makepkg
+git clone https://aur.archlinux.org/amass-git.git
+cd amass-git
+makepkg -si
+```
+
+#### Opción C — Compilar desde el código (necesita Go 1.25+)
+
+```bash
+sudo pacman -S --needed go git
+git clone https://github.com/owasp-amass/amass.git
+cd amass
+CGO_ENABLED=0 go install -v github.com/owasp-amass/amass/v5/cmd/amass@main
+```
+
+El binario queda en `$(go env GOPATH)/bin`. Para que esté en el `PATH`:
+
+```bash
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### En Kali Linux
+
+Kali trae Amass en sus repositorios:
+
+```bash
+sudo apt update
+sudo apt install -y amass
+```
+
+> **Atención:** la versión de los repositorios de Kali puede no ser la última.
+> Para instalar la v5 concreta, usa el binario oficial o compila desde el
+> código (las mismas órdenes de Arch, Opciones A y C).
+
+### Alternativa universal: Docker
+
+Si no quieres instalar nada en el sistema:
+
+```bash
+docker pull owaspamass/amass:latest
+docker run --rm owaspamass/amass:latest -version
+```
+
+### Confirmar que quedó instalado
+
+```bash
+# 1. ¿Está en el PATH?
+which amass
+# Esperado: /usr/local/bin/amass   (Arch)
+#           /usr/bin/amass           (Kali)
+
+# 2. ¿Qué versión es?
+amass -version
+# Esperado: v5.1.3
+
+# 3. ¿Responde la ayuda?
+amass -h
+# Debe listar los subcomandos: assoc, engine, enum, subs, track, viz
+
+# 4. ¿Qué subcomandos tiene?
+amass -h 2>&1 | grep -oE "\[assoc\|engine\|enum\|subs\|track\|viz\]"
+# Esperado: [assoc|engine|enum|subs|track|viz]
+
+# 5. Comprobación final
+amass -version && echo "INSTALACIÓN CORRECTA"
+```
+
+> **Sobre `amass enum -list`:** en la v5 este comando **no** solo lista las
+> fuentes: además de eso **ejecuta una enumeración** y por eso pide un dominio
+> (`-d`) y tarda. Úsalo solo si quieres ver la lista completa de fuentes
+> activas: `amass enum -list -d lab.local`. Para una comprobación rápida,
+> `amass -h` es suficiente.
+
+Si `which amass` no devuelve nada, el binario no está en el `PATH`. En Arch
+suele estar en `/usr/local/bin` (revisa con `echo $PATH`); en Kali, en `/usr/bin`.
+
+---
+
 ## Paso 1 · Montar el laboratorio
 
 Desde tu portátil (Arch), en la raíz del proyecto:

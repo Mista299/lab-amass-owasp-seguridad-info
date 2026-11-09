@@ -13,12 +13,12 @@ Todo corre en Docker. No necesitas Kali, ni máquinas virtuales, ni una IP públ
 
 ## Requisitos
 
-| Componente | Versión | En Arch |
-|---|---|---|
-| Docker Engine | 24 o superior | `sudo pacman -S docker` |
-| Docker Compose | v2 | `sudo pacman -S docker-compose` |
-| RAM libre | 2 GB | — |
-| Disco libre | 3 GB | — |
+| Componente | Versión | En Arch | En Debian/Ubuntu |
+|---|---|---|---|
+| Docker Engine | 24 o superior | `sudo pacman -S docker` | ver docs.docker.com |
+| Docker Compose | v2 | `sudo pacman -S docker-compose` | `sudo apt install docker-compose-plugin` |
+| RAM libre | 2 GB | — | — |
+| Disco libre | 3 GB | — | — |
 
 ```bash
 sudo systemctl enable --now docker
@@ -27,6 +27,41 @@ sudo usermod -aG docker $USER   # cierra la sesión y vuelve a entrar
 
 > **No necesitas conexión a Internet para ejecutar el laboratorio.** Solo la
 > necesitas la primera vez, para descargar las imágenes de Docker.
+
+### Instalar Amass en tu equipo (opcional)
+
+No hace falta para el laboratorio, pero si quieres **aprender la herramienta
+por fuera**:
+
+**Arch Linux** — binario oficial:
+
+```bash
+cd /tmp
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_linux_amd64.tar.gz
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_checksums.txt
+sha256sum -c amass_checksums.txt --ignore-missing
+tar xzf amass_linux_amd64.tar.gz
+sudo install -m 755 amass_linux_amd64/amass /usr/local/bin/amass
+```
+
+**Kali Linux** — desde los repositorios:
+
+```bash
+sudo apt update
+sudo apt install -y amass
+```
+
+**Confirmar la instalación:**
+
+```bash
+which amass      # /usr/local/bin/amass (Arch) o /usr/bin/amass (Kali)
+amass -version   # v5.1.3
+amass -h         # debe listar: assoc, engine, enum, subs, track, viz
+```
+
+> Amass instalado de forma nativa **sí sale a Internet**: consulta fuentes
+> OSINT públicas. En el laboratorio eso no ocurre, porque todo se dirige al
+> DNS ficticio.
 
 ---
 
