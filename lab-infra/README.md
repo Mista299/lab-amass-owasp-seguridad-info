@@ -1,4 +1,4 @@
-# LAB-INFRA · Laboratorio OWASP Amass
+# LAB-INFRA - Laboratorio OWASP Amass
 
 Infraestructura del laboratorio de reconocimiento y mapeo de superficie de
 ataque con **OWASP Amass v5**.
@@ -58,7 +58,7 @@ Detener:
 | `scripts/03-aislar-salida.sh` | Bloqueo de salida en VM nativa (alternativa) |
 | `scripts/04-setup-attacker.sh` | Docker + Amass en VM nativa (alternativa) |
 | `webmock/` | Fuentes OSINT simuladas (opcional) |
-| `TOPOLOGIA.md` | Diagrama y mapeo DNS → activos |
+| `TOPOLOGIA.md` | Diagrama y mapeo DNS -> activos |
 | `NOTAS-PASIVO.md` | Cómo funciona el modo pasivo offline y sus limitaciones |
 | `../02-GUIA-LABORATORIO.md` | **Guía completa con todos los comandos** |
 
@@ -72,7 +72,7 @@ RED DOCKER "labnet" — 192.168.56.0/24
   amass-lab-dns     192.168.56.101:53    DNS autoritativo ficticio
   amass-lab-amass   192.168.56.100       Motor + cliente de Amass v5
                                              + SQLite (asset.db)
-                                             + redirección DNS → lab
+                                             + redirección DNS -> lab
 
   objetivo (opcional) 192.168.56.103     Metasploitable 3
 ```

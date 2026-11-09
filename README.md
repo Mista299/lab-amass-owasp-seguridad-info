@@ -1,4 +1,4 @@
-# OWASP Amass · Laboratorio 100 % offline
+# OWASP Amass - Laboratorio 100 % offline
 
 Laboratorio de reconocimiento y mapeo de superficie de ataque con **OWASP Amass v5**
 completamente aislado de Internet.
@@ -11,7 +11,7 @@ Todo corre en Docker. No necesitas Kali, ni máquinas virtuales, ni una IP públ
 
 ---
 
-## ⚠️ Antes de empezar
+## Nota: Antes de empezar
 
 **Todo este laboratorio ocurre dentro de tu portátil.** No hay servidor remoto,
 no hay nube, no hay objetivo ajeno:
@@ -28,18 +28,12 @@ No puedes hacer daño a nadie con este laboratorio.
 |---|---|---|
 | **Este laboratorio** | Todo: pasivo, DNS, fuerza bruta, AXFR | **Nulo** |
 | **Tu propio dominio** (~10 USD/año) | Todo, contra infraestructura real | **Nulo** |
-| **Dominios IANA** (`example.com`) | **Solo pasivo**: OSINT, CT, DNS pasivo | Nulo |
-| **Bug bounty** (HackerOne, Bugcrowd) | Solo dentro del scope publicado | Bajo |
+| **Dominios IANA** (`example.com`) | Solo pasivo: OSINT y Certificate Transparency | Nulo |
 
 > **El alcance se define antes de la herramienta.** "Voy a usar Amass" no es un
 > alcance; "autorizo el reconocimiento pasivo del dominio X" sí.
->
-> Y ojo: **HackerOne no es un laboratorio**. Es una plataforma de reporte: te
-> registras, lees el scope de un programa, haces reconocimiento pasivo y
-> reportas lo que encuentres. No hay máquina virtual que descargar.
 
-Detalle completo en
-[`02-GUIA-LABORATORIO.md`](02-GUIA-LABORATORIO.md#pruebas-contra-objetivos-reales--qué-es-legal-y-qué-no).
+En la guía hay dos comandos de reconocimiento pasivo contra un dominio real.
 
 ---
 
@@ -86,9 +80,7 @@ sudo apt install -y amass
 **Confirmar la instalación:**
 
 ```bash
-which amass      # /usr/local/bin/amass (Arch) o /usr/bin/amass (Kali)
 amass -version   # v5.1.3
-amass -h         # debe listar: assoc, engine, enum, subs, track, viz
 ```
 
 > Amass instalado de forma nativa **sí sale a Internet**: consulta fuentes
@@ -156,7 +148,7 @@ RED DOCKER "labnet" — 192.168.56.0/24
   amass-lab-dns     192.168.56.101:53    DNS autoritativo ficticio
   amass-lab-amass   192.168.56.100       Motor + cliente de Amass v5
                                              + SQLite (asset.db)
-                                             + redirección DNS → lab
+                                             + redirección DNS -> lab
 
   objetivo (opcional) 192.168.56.103     Metasploitable 3
 ```
@@ -205,7 +197,7 @@ RED DOCKER "labnet" — 192.168.56.0/24
   amass-lab-dns     192.168.56.101:53    DNS autoritativo ficticio
   amass-lab-amass   192.168.56.100       Motor + cliente de Amass v5
                                              + SQLite (asset.db)
-                                             + redirección DNS → lab
+                                             + redirección DNS -> lab
 
   objetivo (opcional) 192.168.56.103     Metasploitable 3
 ```
@@ -282,7 +274,7 @@ vía estable y produce el mismo resultado observable.
 | `01-GUION-EXPOSITOR.md` | Guion de la exposición de 25 minutos |
 | `00-PLAN-EJERCICIO-PRACTICO-OWASP-AMASS.md` | Plan de la sesión |
 | `lab-infra/README.md` | Detalle de la infraestructura |
-| `lab-infra/TOPOLOGIA.md` | Diagrama y mapeo DNS → activos |
+| `lab-infra/TOPOLOGIA.md` | Diagrama y mapeo DNS -> activos |
 | `lab-infra/NOTAS-PASIVO.md` | Cómo funciona el modo pasivo offline y sus limitaciones |
 | `slides/output/OWASP-Amass-Presentacion.pptx` | Presentación de 11 diapositivas |
 

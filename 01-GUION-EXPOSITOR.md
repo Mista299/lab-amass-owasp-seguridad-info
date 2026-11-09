@@ -38,10 +38,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 1 · Portada
+## Diapositiva 1 - Portada
 **0:00 – 0:30 (30 s)**
 
-→ Presentación en pantalla. Saluda, no leas la portada.
+-> Presentación en pantalla. Saluda, no leas la portada.
 
 > "Buenos días. Soy Michael Stiven Tabares Tobón, estudiante de noveno semestre de Ingeniería de Sistemas. Hoy voy a hablar de OWASP Amass, una herramienta de reconocimiento, y más importante que la herramienta, vamos a construir un laboratorio donde usarla de verdad."
 
@@ -49,10 +49,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 2 · El problema
+## Diapositiva 2 - El problema
 **0:30 – 1:40 (70 s)**
 
-→ Señala las tres cifras.
+-> Señala las tres cifras.
 
 > "Empecemos por el problema. Casi todas las organizaciones tienen una lista de sus dominios principales. Muy pocas tienen una lista de sus subdominios."
 
@@ -66,10 +66,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 3 · ¿Qué es OWASP Amass?
+## Diapositiva 3 - ¿Qué es OWASP Amass?
 **1:40 – 2:50 (70 s)**
 
-→ Lee la definición, luego las tres tarjetas.
+-> Lee la definición, luego las tres tarjetas.
 
 > "OWASP Amass es un framework open source de la organización OWASP para reconocimiento de activos y mapeo de superficie de ataque."
 
@@ -85,10 +85,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 4 · Pasivo vs. Activo
+## Diapositiva 4 - Pasivo vs. Activo
 **2:50 – 4:30 (100 s)**
 
-→ Columna PASIVO, luego ACTIVO.
+-> Columna PASIVO, luego ACTIVO.
 
 > "Esta es la decisión más importante de la práctica. Les pido que la retengan."
 
@@ -102,10 +102,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 5 · Arquitectura
+## Diapositiva 5 - Arquitectura
 **4:30 – 5:30 (60 s)**
 
-→ Recorre el pipeline con el dedo.
+-> Recorre el pipeline con el dedo.
 
 > "Por dentro es un pipeline de cuatro etapas."
 
@@ -121,10 +121,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 6 · La base de datos
+## Diapositiva 6 - La base de datos
 **5:30 – 6:40 (70 s)**
 
-→ Señala las tres columnas.
+-> Señala las tres columnas.
 
 > "Vale la pena detenerse en la base de datos, porque alguien seguro va a preguntar y la respuesta es más interesante de lo que parece."
 
@@ -140,16 +140,16 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 7 · Divisor "Manos a la obra"
+## Diapositiva 7 - Divisor "Manos a la obra"
 **6:40 – 8:00 (80 s)**
 
-→ Transición. Aquí cambias de registro: de expositor a operador.
+-> Transición. Aquí cambias de registro: de expositor a operador.
 
 > "Hasta aquí la teoría. Ahora vamos a ejecutar."
 
 > "Y antes de la primera orden, déjenme mostrarles cómo está armado el laboratorio, porque de ahí se entiende todo lo que vamos a ver."
 
-→ Señala el panel de topología.
+-> Señala el panel de topología.
 
 > "Son dos piezas. Una hace de servidor DNS y sirve una zona ficticia con 32 nombres. La otra tiene Amass y hace el reconocimiento. Las dos en una red privada, `192.168.56.0/24`."
 
@@ -161,10 +161,10 @@ Para la demo usaré el atajo que hace todo en un paso:
 
 ---
 
-## Diapositiva 8 · Paso 0 — Verificar el entorno
+## Diapositiva 8 - Paso 0 — Verificar el entorno
 **8:00 – 10:00 (120 s)**
 
-→ Abre una terminal en la carpeta del proyecto.
+-> Abre una terminal en la carpeta del proyecto.
 
 > "Paso cero. Antes de ejecutar Amass, comprobamos que el laboratorio está en pie."
 
@@ -201,10 +201,10 @@ docker compose -f compose.yaml exec amass amass -version
 
 ---
 
-## Diapositiva 9 · Paso 1 y 2 — Enumeración y fuerza bruta
+## Diapositiva 9 - Paso 1 y 2 — Enumeración y fuerza bruta
 **10:00 – 13:00 (180 s)**
 
-→ Ejecuta la enumeración.
+-> Ejecuta la enumeración.
 
 > "Paso uno: enumeración activa con fuerza bruta."
 
@@ -231,7 +231,7 @@ docker compose -f compose.yaml exec amass amass enum \
 
 > "`-timeout 3`: si deja de avanzar tres minutos, se detiene solo."
 
-→ Muestra la barra de progreso.
+-> Muestra la barra de progreso.
 
 > "Veintinueve de treinta. El motor hizo más de 500 consultas al DNS."
 
@@ -243,7 +243,7 @@ docker compose -f compose.yaml exec amass amass subs -names -d lab.local -ip
 
 > "Y aquí están, con su IP correlacionada."
 
-→ Señala la salida.
+-> Señala la salida.
 
 > "Ahora lo importante: fíjense en lo que **no** aparece."
 
@@ -263,10 +263,10 @@ docker compose -f compose.yaml logs dns | grep query | \
 
 ---
 
-## Diapositiva 10 · Paso 3 — Del hallazgo al riesgo
+## Diapositiva 10 - Paso 3 — Del hallazgo al riesgo
 **13:00 – 16:00 (180 s)**
 
-→ Señala la tabla de severidad.
+-> Señala la tabla de severidad.
 
 > "Ahora la parte que separa una herramienta de un análisis."
 
@@ -282,7 +282,7 @@ docker compose -f compose.yaml logs dns | grep query | \
 
 > "Y `www` y `mail` son bajos: activos públicos esperados."
 
-→ Señala el recuadro inferior.
+-> Señala el recuadro inferior.
 
 > "Pero lean el recuadro con atención, porque es el mensaje final."
 
@@ -292,12 +292,12 @@ docker compose -f compose.yaml logs dns | grep query | \
 
 ---
 
-## Diapositiva 11 · Cierre
+## Diapositiva 11 - Cierre
 **16:00 – 22:00**
 
 *(Si la demo fue bien, este bloque puede ser más corto y dejar más tiempo a preguntas.)*
 
-→ Señala las tres tarjetas.
+-> Señala las tres tarjetas.
 
 > "Tres ideas para llevarse."
 
@@ -311,7 +311,7 @@ docker compose -f compose.yaml logs dns | grep query | \
 
 > "El código, la zona DNS y los scripts están en GitHub. Con gusto los revisamos."
 
-→ Pausa. Preguntas.
+-> Pausa. Preguntas.
 
 ---
 
@@ -324,7 +324,7 @@ capturas **reales** del laboratorio ya generadas:
 
 | Archivo | Qué muestra |
 |---|---|
-| `imgs/demo-1.png` | `amass -version` → v5.1.3 |
+| `imgs/demo-1.png` | `amass -version` -> v5.1.3 |
 | `imgs/demo-2.png` | El DNS respondiendo y el NXDOMAIN de `test.lab.local` |
 | `imgs/demo-3.png` | Los 14 subdominios con sus IPs (`amass subs`) |
 | `imgs/demo-4.png` | Las consultas DNS registradas (la evidencia de la fuerza bruta) |
@@ -332,9 +332,8 @@ capturas **reales** del laboratorio ya generadas:
 Y el PDF de la presentación: `slides/output/OWASP-Amass-Presentacion.pdf`
 (11 páginas, por si el `.pptx` no se abre en el equipo del aula).
 
-> **Cómo usarlo sin que se note:** "Les voy a mostrar una captura de la corrida
-> anterior, porque en esta máquina la enumeración tarda más de lo previsto.
-> Los datos son los mismos."
+> Si el comando se demora más de lo previsto: "Les muestro una captura de la
+> corrida anterior, porque en esta máquina tarda más. Los datos son los mismos."
 
 ### Problemas técnicos
 
