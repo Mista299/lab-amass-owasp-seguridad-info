@@ -323,7 +323,7 @@ capturas **reales** del laboratorio ya generadas:
 | `imgs/demo-3.png` | Los 14 subdominios con sus IPs (`amass subs`) |
 | `imgs/demo-4.png` | Las consultas DNS registradas (la evidencia de la fuerza bruta) |
 
-Y el PDF de la presentación: `slides/output/OWASP-Amass-Presentacion.pdf`
+Y el PDF de la presentación: `material/OWASP-Amass-Presentacion.pdf`
 (11 páginas, por si el `.pptx` no se abre en el equipo del aula).
 
 > Si el comando se demora más de lo previsto: "Les muestro una captura de la

@@ -276,7 +276,7 @@ vía estable y produce el mismo resultado observable.
 | `lab-infra/README.md` | Detalle de la infraestructura |
 | `lab-infra/TOPOLOGIA.md` | Diagrama y mapeo DNS -> activos |
 | `lab-infra/NOTAS-PASIVO.md` | Cómo funciona el modo pasivo offline y sus limitaciones |
-| `slides/output/OWASP-Amass-Presentacion.pptx` | Presentación de 11 diapositivas |
+| `material/OWASP-Amass-Presentacion.pdf` | Presentación de 11 diapositivas en PDF |
 
 ---
 

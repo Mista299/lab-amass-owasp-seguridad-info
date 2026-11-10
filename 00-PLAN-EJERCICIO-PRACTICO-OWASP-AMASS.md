@@ -77,7 +77,7 @@ Si la demo falla:
 
 | Archivo | Contenido |
 |---|---|
-| `slides/output/OWASP-Amass-Presentacion.pdf` | La presentación en PDF, 11 páginas |
+| `material/OWASP-Amass-Presentacion.pdf` | La presentación en PDF, 11 páginas |
 | `lab-infra/imgs/demo-1.png` | `amass -version` |
 | `lab-infra/imgs/demo-2.png` | El DNS respondiendo y el NXDOMAIN |
 | `lab-infra/imgs/demo-3.png` | Los 14 subdominios con sus IPs |
@@ -120,7 +120,7 @@ docker compose -f compose.yaml exec amass bash
 | 1 | `00-PLAN-EJERCICIO-PRACTICO-OWASP-AMASS.md` |
 | 2 | `01-GUION-EXPOSITOR.md` |
 | 3 | `02-GUIA-LABORATORIO.md` |
-| 4 | `slides/output/OWASP-Amass-Presentacion.pptx` |
+| 4 | `material/OWASP-Amass-Presentacion.pdf` |
 | 5 | `lab-infra/` con el laboratorio completo |
 
 ---

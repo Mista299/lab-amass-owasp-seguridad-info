@@ -10,11 +10,10 @@ lab-infra/configs/namelist.txt
 lab-infra/configs/alterations.txt
 lab-infra/configs/datasources.yaml.bak
 
-# Presentación: fuentes sí se versionan, artefactos de build no
-slides/node_modules/
-slides/output/slide-*.pdf
-slides/output/slide-*.png
-slides/output/slide-*-preview.pptx
+# Presentación: no se versiona (se entrega aparte)
+slides/
+
+# La presentacion en PDF sí se incluye, en material/
 node_modules/
 
 # Sistema
