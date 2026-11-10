@@ -21,6 +21,55 @@ cd lab-amass-owasp-seguridad-info
 
 ---
 
+## Antes de empezar · Cómo funciona un DNS
+
+Internet conecta **direcciones IP**, no nombres. El DNS traduce nombres a
+direcciones:
+
+```
+dev.lab.local  ──[pregunta]──►  DNS  ──[respuesta]──►  192.168.56.103
+```
+
+`dig` es el cliente de línea de comandos para preguntar. Empieza siempre
+con `dig +short`, que imprime solo la respuesta:
+
+```bash
+dig +short @192.168.56.101 dev.lab.local A
+```
+```
+192.168.56.103
+```
+
+Un nombre que **no** existe no devuelve nada:
+
+```bash
+dig +short @192.168.56.101 test.lab.local A
+```
+
+Sin `+short` ves el código de estado, que es lo que importa:
+
+| Status | Significado |
+|---|---|
+| `NOERROR` | La consulta funcionó. Si hay respuesta, el nombre existe |
+| `NXDOMAIN` | **No existe.** El nombre no está en la zona |
+
+Un registro no es solo nombre + IP. Los tipos que importan aquí:
+
+| Tipo | Para qué |
+|---|---|
+| `A` | Nombre a IPv4 |
+| `CNAME` | Alias: un nombre apunta a otro |
+| `NS` | Qué servidores DNS son los autorizados |
+| `MX` | Servidor de correo |
+| `SRV` | Puerto y protocolo de un servicio |
+
+**Qué le añade Amass al `dig`:** hace las preguntas por ti (genera candidatos y
+pregunta por cada uno), las cruza (un `A` da la IP, un `MX` da el servidor de
+correo), y guarda el resultado como un grafo de activos con relaciones. `dig`
+hace una pregunta; Amass construye un inventario.
+
+---
+
 ## Paso 1 · Montar el laboratorio
 
 Desde la raíz del proyecto:
