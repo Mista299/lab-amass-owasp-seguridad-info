@@ -8,31 +8,6 @@ Dominio ficticio: `lab.local` · Red: `192.168.56.0/24`
 
 ---
 
-## Aviso
-
-Todo este laboratorio corre dentro de tu portátil:
-
-- El dominio `lab.local` **no existe en Internet** (TLD reservado por la IANA).
-- La red `192.168.56.0/24` es **privada** (RFC 1918).
-- El servidor DNS es un contenedor de Docker en tu máquina.
-
-No se puede hacer daño a nadie con este laboratorio.
-
----
-
-## Qué vas a hacer
-
-```
-1.  Montar el laboratorio              ./start.sh
-2.  Entrar a la máquina Amass          docker compose exec amass bash
-3.  Ejecutar el escaneo                amass enum ...
-4.  Ver los resultados                 amass subs ...
-```
-
-Son cuatro pasos. Nada más.
-
----
-
 ## Paso 1 · Montar el laboratorio
 
 Desde la raíz del proyecto:
