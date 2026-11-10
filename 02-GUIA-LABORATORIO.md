@@ -8,6 +8,19 @@ Dominio ficticio: `lab.local` · Red: `192.168.56.0/24`
 
 ---
 
+## Código y descargas
+
+**<https://github.com/Mista299/lab-amass-owasp-seguridad-info>**
+
+Para tener el laboratorio en tu equipo:
+
+```bash
+git clone https://github.com/Mista299/lab-amass-owasp-seguridad-info.git
+cd lab-amass-owasp-seguridad-info
+```
+
+---
+
 ## Paso 1 · Montar el laboratorio
 
 Desde la raíz del proyecto:
