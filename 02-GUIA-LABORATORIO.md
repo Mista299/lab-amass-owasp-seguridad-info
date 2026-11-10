@@ -81,6 +81,23 @@ Para salir: `exit`
 
 ## Paso 3 · El escaneo
 
+### Ojo con dónde estás
+
+Los comandos de este paso están en **dos sitios distintos**. Mira el prompt
+antes de copiar:
+
+| Tu prompt | Dónde estás | Qué puedes ejecutar |
+|---|---|---|
+| `usuario@equipo:~/...$` | Tu portátil | `docker compose ...`, `./start.sh` |
+| `d18e4b7ae2c1:/data#` | Dentro de la máquina Amass | `amass ...`, `dig ...`, `sqlite3 ...` |
+
+Si intentas un comando de `docker` estando dentro del contenedor, sale
+`docker: command not found`. Para volver al portátil: `exit`.
+
+---
+
+### Dentro de la máquina Amass
+
 Estos comandos se ejecutan **dentro de la máquina Amass**.
 
 ### Primero, comprueba que el DNS ficticio responde
@@ -257,12 +274,28 @@ herramienta.
 
 Muestra cada nombre que se le preguntó al servidor DNS.
 
-Sal de la máquina Amass (`exit`) y desde `lab-infra/docker`:
+**Este comando va FUERA del contenedor.** Si el prompt muestra `d18e4b7ae2c1:/data#`
+estás dentro de la máquina Amass y ahí no existe el comando `docker`.
+
+Primero sal:
+
+```bash
+exit
+```
+
+El prompt vuelve a mostrar la ruta de tu proyecto. Y desde `lab-infra/docker`:
 
 ```bash
 docker compose -f compose.yaml logs dns | grep "query" \
   | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
 ```
+
+> **Si prefieres no cambiar de sitio**, hay un atajo que funciona desde
+> cualquier directorio y desde dentro o fuera del contenedor:
+>
+> ```bash
+> ./start.sh --dns
+> ```
 
 ### La base de datos de activos
 
