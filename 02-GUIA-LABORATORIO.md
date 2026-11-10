@@ -132,6 +132,13 @@ amass enum \
 
 Tarda entre 2 y 4 minutos.
 
+Si necesitas copiarlo en una sola línea (por ejemplo, para pegarlo en el
+terminal sin que se corte):
+
+```bash
+amass enum -engine http://127.0.0.1:4000 -active -brute -w /wl/subdomains-lab.txt -d lab.local -p 80,443 -timeout 3
+```
+
 ### Los resultados
 
 ```bash

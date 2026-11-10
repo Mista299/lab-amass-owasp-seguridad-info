@@ -210,13 +210,7 @@ docker compose -f compose.yaml exec amass amass -version
 
 ```bash
 cd lab-infra/docker
-docker compose -f compose.yaml exec amass amass enum \
-  -engine http://127.0.0.1:4000 \
-  -active \
-  -brute -w /wl/subdomains-lab.txt \
-  -d lab.local \
-  -p 80,443 \
-  -timeout 3
+docker compose -f compose.yaml exec amass amass enum -engine http://127.0.0.1:4000 -active -brute -w /wl/subdomains-lab.txt -d lab.local -p 80,443 -timeout 3
 ```
 
 > "Déjenme explicar cada parte antes de que termine."
