@@ -1,11 +1,9 @@
 # Guía del laboratorio — OWASP Amass
 
 **Laboratorio de reconocimiento y mapeo de superficie de ataque**
-
 Dominio ficticio: `lab.local` · Red: `192.168.56.0/24`
 
 **Expositor:** Michael Stiven Tabares Tobón
-
 **Curso:** Seguridad de la Información — 2026-II · Ingeniería de Sistemas, UdeA
 
 ---
@@ -20,27 +18,18 @@ Todo este laboratorio corre dentro de tu portátil:
 
 No se puede hacer daño a nadie con este laboratorio.
 
-Al final de la guía hay dos comandos para practicar reconocimiento **pasivo**
-contra un dominio real, que no tocan el objetivo.
-
 ---
 
-## Las dos máquinas
+## Qué vas a hacer
 
-| Máquina | Qué hace | Cómo entras |
-|---|---|---|
-| **Tu portátil** | Escribes los comandos | Ya estás aquí |
-| **Amass** | La herramienta y su base de datos | `docker compose exec amass bash` |
-
-Regla: **todos los comandos de `amass` se ejecutan dentro de la máquina
-`amass`**. Para entrar:
-
-```bash
-cd lab-infra/docker
-docker compose -f compose.yaml exec amass bash
+```
+1.  Montar el laboratorio              ./start.sh
+2.  Entrar a la máquina Amass          docker compose exec amass bash
+3.  Ejecutar el escaneo                amass enum ...
+4.  Ver los resultados                 amass subs ...
 ```
 
-Para salir: `exit`.
+Son cuatro pasos. Nada más.
 
 ---
 
@@ -77,11 +66,7 @@ Salida esperada:
  [✓] NXDOMAIN correcto para los candidatos inexistentes
 ```
 
-Para empezar de cero:
-
-```bash
-./start.sh --reset
-```
+Para empezar de cero: `./start.sh --reset`
 
 ---
 
@@ -102,35 +87,15 @@ hostname        # deve mostrar algo como amass-lab-amass
 which amass    # /bin/amass
 ```
 
-Para salir: `exit`.
+Para salir: `exit`
 
 ---
 
-## Paso 3 · Comandos de la práctica
+## Paso 3 · El escaneo
 
-Todos estos se ejecutan **dentro de la máquina Amass** (después del Paso 2).
+Estos comandos se ejecutan **dentro de la máquina Amass**.
 
-### Ver la versión
-
-```bash
-amass -version
-```
-
-```
-v5.1.3
-```
-
-### Ver la ayuda
-
-```bash
-amass -h
-amass enum -h
-amass subs -h
-```
-
-### Comprobar que el DNS ficticio responde
-
-Un nombre que sí existe:
+### Primero, comprueba que el DNS ficticio responde
 
 ```bash
 dig +short @192.168.56.101 dev.lab.local A
@@ -146,7 +111,17 @@ Un nombre que no existe (el DNS responde NXDOMAIN, no hay salida):
 dig +short @192.168.56.101 test.lab.local A
 ```
 
-### Enumeración activa con fuerza bruta
+### Versión de Amass
+
+```bash
+amass -version
+```
+
+```
+v5.1.3
+```
+
+### La enumeración
 
 ```bash
 amass enum \
@@ -169,7 +144,7 @@ amass enum \
 
 Tarda entre 2 y 4 minutos.
 
-### Ver los resultados
+### Los resultados
 
 ```bash
 amass subs -names -d lab.local -ip
@@ -192,13 +167,26 @@ vpn.lab.local 192.168.56.106
 www.lab.local 192.168.56.103
 ```
 
-### Fuerza bruta completa (recomendado para la demo)
+---
 
-Este script hace la enumeración base y luego prueba cada candidato del wordlist
-por separado, porque en Amass v5.1.3 la opción `-nf` entra en panic si se le
-pasan varios nombres a la vez.
+## La fuerza bruta completa
 
-Sal de la máquina Amass (`exit`) y ejecuta desde la raíz del proyecto:
+### Por qué hace falta un paso aparte
+
+La enumeración de arriba descubre los subdominios **que el DNS publica** por
+sus registros NS, MX y SRV. En el laboratorio eso da tres nombres: `lab.local`,
+`mail.lab.local` y `ns1.lab.local`.
+
+Los otros once (`dev`, `vpn`, `jenkins`…) **no aparecen** en ningún registro, y
+el DNS no tiene forma de anunciarlos. Solo aparecen si alguien **pregunta por
+ ellos uno a uno**. Eso es la fuerza bruta.
+
+El paso adicional hace exactamente eso: recorre la lista de 13 candidatos y
+pregunta al DNS por cada uno.
+
+### Cómo se ejecuta
+
+Sal de la máquina Amass (`exit`) y desde la raíz del proyecto:
 
 ```bash
 ./start.sh --brute
@@ -213,6 +201,7 @@ Salida:
 ==> Paso 2/2 · Validando cada candidato contra el DNS
     www.lab.local [✓] EXISTE
     mail.lab.local [✓] EXISTE
+    dev.lab.local [✓] EXISTE
     ...
     test.lab.local [✗] descartado (NXDOMAIN)
     stage.lab.local [✗] descartado (NXDOMAIN)
@@ -226,12 +215,14 @@ Salida:
 Esa diferencia es el punto: **la fuerza bruta no solo confirma, también
 descarta**. El DNS es el que decide.
 
-### La lista de palabras de la fuerza bruta
+> **Nota técnica:** en Amass v5.1.3 la opción `-nf` provoca un error interno
+> cuando se le pasan varios nombres a la vez. Por eso el script los prueba de
+> uno en uno. Es un detalle de la implementación, no de la técnica.
 
-El archivo `lab-infra/wordlists/subdomains-lab.txt` **está creado para este
-laboratorio**. No es una lista genérica de Internet ni viene con Amass.
+### La lista de palabras
 
-Contenido (13 palabras, una por línea, sin el dominio):
+El archivo `lab-infra/wordlists/subdomains-lab.txt` está creado para este
+laboratorio. No es una lista genérica ni viene con Amass.
 
 ```
 # --- Existen en la zona lab.local (11) ---
@@ -252,63 +243,24 @@ test
 stage
 ```
 
-| Palabra | Resultado | Razón de la elección |
-|---|---|---|
-| `www` | Existe | Activo público esperado. El caso base. |
-| `mail` | Existe | Se encuentra por el registro MX de la zona. |
-| `dev` | Existe | Entorno de desarrollo. |
-| `staging` | Existe | Entorno de preproducción. |
-| `qa` | Existe | Entorno de pruebas. |
-| `admin` | Existe | Panel de administración. |
-| `vpn` | Existe | Acceso remoto. |
-| `jenkins` | Existe | Integración continua. |
-| `gitlab` | Existe | Repositorio de código. |
-| `grafana` | Existe | Panel de observabilidad. |
-| `api` | Existe | API de la organización. |
-| `test` | **No existe** | Nombre típico de pruebas. La zona no lo define. |
-| `stage` | **No existe** | Variante de `staging`. La zona solo define `staging`. |
+La zona DNS (`lab-infra/dns/zone.txt`) se diseñó primero, con activos
+realistas de una organización de software, y de ella se extrajeron las 11
+palabras que la fuerza bruta debe encontrar.
 
-Dos decisiones importantes:
+`test` y `stage` no existen a propósito. `staging` existe pero `stage` no, y
+`test` es el nombre que todo el mundo probaría. Si los 13 encontraran
+respuesta, la demostración no probaría nada.
 
-**Los 11 primeros existen porque están en `lab-infra/dns/zone.txt`.** La zona
-del laboratorio se diseñó primero, con activos realistas de una organización
-de software, y después se extrajeron de ella las palabras que la fuerza bruta
-debe encontrar.
+---
 
-**Los 2 últimos no existen a propósito.** No son un error: son el mecanismo
-que demuestra el descarte. `staging` existe pero `stage` no, y `test` es el
-nombre que todo el mundo probaría pero aquí no está definido. Si los 13
-encontraran respuesta, la demostración no probaría nada.
+## Comandos opcionales
 
-Para ver el wordlist:
+Ninguno es necesario para la demostración. Sirven para entender mejor la
+herramienta.
 
-```bash
-cat lab-infra/wordlists/subdomains-lab.txt
-```
+### Las consultas DNS que hizo Amass
 
-Y para compararlo con la zona:
-
-```bash
-grep -vE '^\s*(#|$)' lab-infra/wordlists/subdomains-lab.txt | while read -r w; do
-  if grep -q "^${w}\.lab\.local" lab-infra/dns/zone.txt; then
-    echo "${w}.lab.local -> existe"
-  else
-    echo "${w}.lab.local -> no existe"
-  fi
-done
-```
-
-Salida:
-
-```
-www.lab.local -> existe
-mail.lab.local -> existe
-...
-test.lab.local -> no existe
-stage.lab.local -> no existe
-```
-
-### Ver las consultas DNS registradas
+Muestra cada nombre que se le preguntó al servidor DNS.
 
 Sal de la máquina Amass (`exit`) y desde `lab-infra/docker`:
 
@@ -317,52 +269,29 @@ docker compose -f compose.yaml logs dns | grep "query" \
   | sed 's/.*\[query\] //' | awk '{print $1}' | sort -u
 ```
 
-### Inspeccionar la base de datos de activos
+### La base de datos de activos
 
-Dentro de la máquina Amass:
-
-```bash
-sqlite3 /.config/amass/asset.db ".tables"
-```
-
-```
-edge  entity  entity_tag  fqdn  ipaddress  service ...
-```
-
-Los nombres:
+Amass guarda el grafo en SQLite. Dentro de la máquina Amass:
 
 ```bash
 sqlite3 /.config/amass/asset.db "SELECT fqdn FROM fqdn ORDER BY fqdn;"
 ```
 
-Las IPs:
+Los nombres guardados.
+
+Cuántas relaciones se encontraron:
 
 ```bash
-sqlite3 /.config/amass/asset.db "SELECT ip_address FROM ipaddress;"
+sqlite3 /.config/amass/asset.db "SELECT COUNT(*) FROM edge;"
 ```
 
-Las relaciones del grafo (qué activo se relaciona con cuál):
+Las tablas disponibles:
 
 ```bash
-sqlite3 -header -column /.config/amass/asset.db "
-SELECT f.fqdn AS origen, e.label AS relacion, ip.ip_address AS destino
-FROM edge e
-JOIN entity se ON se.entity_id = e.from_entity_id
-JOIN fqdn f ON f.id = se.row_id
-JOIN entity de ON de.entity_id = e.to_entity_id
-LEFT JOIN ipaddress ip ON ip.id = de.row_id
-ORDER BY f.fqdn LIMIT 12;"
+sqlite3 /.config/amass/asset.db ".tables"
 ```
 
-```
-     origen         relacion      destino
------------------  ----------  ------------------
-admin.lab.local    dns_record  192.168.56.105
-api.lab.local      dns_record  192.168.56.109
-dev.lab.local      dns_record  192.168.56.103
-```
-
-### Ver la zona DNS completa
+### La zona DNS completa
 
 Sal de la máquina Amass (`exit`) y desde `lab-infra/docker`:
 
@@ -372,39 +301,62 @@ docker compose -f compose.yaml exec dns cat /app/zone.txt
 
 ---
 
-## Paso 4 · Resumen
+## Dos preguntas que suelen aparecer
 
-| Acción | Dónde |
+### "¿No es trampa buscar directo en el DNS?"
+
+No. Es al revés: **es exactamente lo que hace Amass**.
+
+La diferencia es quién formula la pregunta:
+
+| Tú directamente con `dig` | Amass |
 |---|---|
-| Montar, reset, detener | Portátil: `./start.sh`, `--reset`, `--stop` |
-| Entrar a la máquina Amass | Portátil: `cd lab-infra/docker` y luego `docker compose -f compose.yaml exec amass bash` |
-| Todo lo de Amass, dig y sqlite3 | Dentro de la máquina Amass |
-| Logs del DNS | Portátil: `docker compose -f compose.yaml logs dns` |
-| La zona DNS | Portátil: `docker compose -f compose.yaml exec dns cat /app/zone.txt` |
+| Preguntas un nombre que tú ya sabes | Genera los candidatos, pregunta y **correlaciona** |
+| Ves un nombre o un NXDOMAIN | Ves el nombre **con su IP, su servicio y su procedencia** |
+| No queda registro | Queda en el grafo, con TTL y confianza |
 
----
+Si en la demo preguntas `dig @192.168.56.101 dev.lab.local` y obtienes
+`192.168.56.103`, estás haciendo una consulta DNS normal. Eso es legitimo y es lo
+que hace la herramienta. La diferencia es que Amass hace 13 de esas, las
+convierte en activos con relaciones, y guarda cuáles fallaron.
 
-## Atajos del script
+De hecho, el comando `logs dns` que se ve arriba **es la bitácora de Amass**.
+Esa es la prueba: el servidor DNS registra cada consulta, y se ve de dónde
+viene cada nombre. Es la misma técnica de la vida real, pero con la
+posibilidad de auditar qué se preguntó.
 
-Si no quieres escribir comandos de Docker:
+### "¿Qué es el TTL?"
 
-| Comando | Qué hace |
-|---|---|
-| `./start.sh` | Monta el laboratorio y verifica el DNS |
-| `./start.sh --reset` | Empieza de cero |
-| `./start.sh --enum` | Ejecuta la enumeración activa |
-| `./start.sh --brute` | Fuerza bruta completa (confirma y descarta) |
-| `./start.sh --results` | Muestra los resultados guardados |
-| `./start.sh --dns` | Muestra las consultas DNS registradas |
-| `./start.sh --check` | Verifica el estado |
-| `./start.sh --logs` | Logs en vivo |
-| `./start.sh --stop` | Detiene el laboratorio |
-| `./start.sh amass <args>` | Ejecuta un comando de Amass a mano |
+**TTL = Time To Live.** Es cuántos segundos puede un resolver DNS guardar una
+respuesta antes de tener que volver a preguntarle al servidor autoritativo.
 
-```bash
-./start.sh amass -version
-./start.sh amass subs -names -d lab.local -ip
 ```
+Servidor DNS  ──"dev.lab.local = 192.168.56.103"──►  Resolver DNS
+                                                            │
+                                              lo guarda 60 s (TTL)
+                                                            │
+                                              si alguien pregunta de nuevo,
+                                              responde sin preguntar al servidor
+```
+
+En nuestro laboratorio el TTL de la zona es **300 segundos** (5 minutos) y el
+de la base de datos de Amass es **1440 minutos** (24 horas).
+
+Dónde aparece en Amass:
+
+| Dato | Significado |
+|---|---|
+| TTL de un registro DNS | Cuánto tiempo un resolver puede cachearlo |
+| TTL en la base de datos de Amass | Cuánto tiempo Amass da por válido un hallazgo antes de volver a verificarlo |
+
+Por qué importa en seguridad:
+
+- Si el TTL es alto (24 h), un subdominio puede seguir resolviendo aunque lo
+  hayas eliminado. Los activos "muertos" tardan en desaparecer.
+- Si el TTL es bajo (5 min), los cambios se propagan rápido, pero Amass tiene
+  que re-preguntar más a menudo, y eso genera más tráfico (y mas facilmente detectable).
+- Un activo con TTL alto **y** ninguna fuente que lo confirme es probablemente
+  un residuo.
 
 ---
 
@@ -430,6 +382,79 @@ Además hay 8 alias CNAME (`intranet`, `secure`, `ci`, `scm`, `metrics`,
 
 Amass no prioriza: entrega el inventario con su procedencia. La severidad
 depende del contexto, y eso lo decide el equipo de seguridad, no el script.
+
+---
+
+## Atajos del script
+
+| Comando | Qué hace |
+|---|---|
+| `./start.sh` | Monta el laboratorio y verifica el DNS |
+| `./start.sh --reset` | Empieza de cero |
+| `./start.sh --enum` | Ejecuta la enumeración activa |
+| `./start.sh --brute` | Fuerza bruta completa (confirma y descarta) |
+| `./start.sh --results` | Muestra los resultados guardados |
+| `./start.sh --dns` | Muestra las consultas DNS registradas |
+| `./start.sh --check` | Verifica el estado |
+| `./start.sh --logs` | Logs en vivo |
+| `./start.sh --stop` | Detiene el laboratorio |
+| `./start.sh amass <args>` | Ejecuta un comando de Amass a mano |
+
+```bash
+./start.sh amass -version
+./start.sh amass subs -names -d lab.local -ip
+```
+
+---
+
+## Problemas frecuentes
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| `Failed to perform a bulk transfer of assets: EOF` | Error interno de Amass v5.1.3 al pasar varios nombres con `-nf`. Mata el motor. | Usa `./start.sh --brute`, que los pasa de a uno. |
+| `Failed to create a session with the Amass engine` | El motor no está listo | `./start.sh` espera al motor. Si persiste, `--reset`. |
+| `Failed to obtain the BGPTools IP address` | `bgp.tools` no resuelve en el DNS del laboratorio | Verifica que está en `lab-infra/docker/zone.txt` y haz `--reset` |
+| `flag provided but not defined: -src` / `-ip` / `-o` | Banderas de v3/v4 que ya no existen en v5 | Usa `amass subs` para leer resultados |
+| `subcommand provided but not defined: db` | El subcomando `db` fue eliminado en v5 | Usa `amass subs` o `sqlite3` |
+| La enumeración no descubre nada | Faltan las `transformations` en el config | Restaura el bloque `transformations:` de `lab-infra/configs/config.yaml` |
+| `service "amass" is not running` | Los contenedores están detenidos | `./start.sh` los levanta |
+| `Address already in use` | Ya hay contenedores con esos nombres | `./start.sh --stop` y vuelve a levantar |
+| `Failed to populate the ASN cache: zero entities found` | Normal: requiere WHOIS/RDAP | Ignorar |
+| `docker: permission denied` | Tu usuario no está en el grupo `docker` | `sudo usermod -aG docker $USER` y reinicia sesión |
+
+---
+
+## Instalar Amass en tu equipo (opcional)
+
+No hace falta para el laboratorio. Si quieres practicar la herramienta fuera
+del laboratorio:
+
+**Arch Linux**, con el binario oficial:
+
+```bash
+cd /tmp
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_linux_amd64.tar.gz
+curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_checksums.txt
+sha256sum -c amass_checksums.txt --ignore-missing
+tar xzf amass_linux_amd64.tar.gz
+sudo install -m 755 amass_linux_amd64/amass /usr/local/bin/amass
+```
+
+**Kali Linux**, desde los repositorios:
+
+```bash
+sudo apt update
+sudo apt install -y amass
+```
+
+Comprobar:
+
+```bash
+amass -version
+```
+
+> Con Amass instalado de forma nativa sí se consulta Internet, porque las
+> fuentes OSINT son externas. En el laboratorio no.
 
 ---
 
@@ -475,57 +500,6 @@ sitio.
 Que un dominio "no tenga nada interesante" no lo convierte en un objetivo
 permitido. En Colombia, escanear sin autorización es un delito informático
 (Ley 1273 de 2009 y Decreto 175 de 2015).
-
----
-
-## Problemas frecuentes
-
-| Síntoma | Causa | Solución |
-|---|---|---|
-| `Failed to perform a bulk transfer of assets: EOF` | Bug de Amass v5.1.3 en el endpoint `bulk` de la API. Mata el motor. | No uses `-nf` con varios nombres. Usa `./start.sh --brute`, que los pasa de a uno. |
-| `Failed to create a session with the Amass engine` | El motor no está listo | `./start.sh` espera al motor. Si persiste, `--reset`. |
-| `Failed to obtain the BGPTools IP address` | `bgp.tools` no resuelve en el DNS del laboratorio | Verifica que está en `lab-infra/docker/zone.txt` y haz `--reset` |
-| `flag provided but not defined: -src` / `-ip` / `-o` | Banderas de v3/v4 que ya no existen en v5 | Usa `amass subs` para leer resultados |
-| `subcommand provided but not defined: db` | El subcomando `db` fue eliminado en v5 | Usa `amass subs` o `sqlite3` |
-| La enumeración no descubre nada | Faltan las `transformations` en el config | Restaura el bloque `transformations:` de `lab-infra/configs/config.yaml` |
-| `service "amass" is not running` | Los contenedores están detenidos | `./start.sh` los levanta |
-| `Address already in use` | Ya hay contenedores con esos nombres | `./start.sh --stop` y vuelve a levantar |
-| `Failed to populate the ASN cache: zero entities found` | Normal: requiere WHOIS/RDAP | Ignorar |
-| `docker: permission denied` | Tu usuario no está en el grupo `docker` | `sudo usermod -aG docker $USER` y reinicia sesión |
-
----
-
-## Instalar Amass en tu equipo (opcional)
-
-No hace falta para el laboratorio. Si quieres practicar la herramienta fuera
-del laboratorio:
-
-**Arch Linux**, con el binario oficial:
-
-```bash
-cd /tmp
-curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_linux_amd64.tar.gz
-curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_checksums.txt
-sha256sum -c amass_checksums.txt --ignore-missing
-tar xzf amass_linux_amd64.tar.gz
-sudo install -m 755 amass_linux_amd64/amass /usr/local/bin/amass
-```
-
-**Kali Linux**, desde los repositorios:
-
-```bash
-sudo apt update
-sudo apt install -y amass
-```
-
-Comprobar:
-
-```bash
-amass -version
-```
-
-> Con Amass instalado de forma nativa sí se consulta Internet, porque las
-> fuentes OSINT son externas. En el laboratorio no.
 
 ---
 
