@@ -320,6 +320,82 @@ descarta**. El DNS es el que decide.
 > cuando se le pasan varios nombres a la vez. Por eso el script los prueba de
 > uno en uno. Es un detalle de la implementación, no de la técnica.
 
+### El comando de fuerza bruta, uno a uno
+
+Para entender qué hace, puedes probar un solo candidato a la vez. Escribe un
+nombre en un archivo y pásalo con `-nf`:
+
+**Dentro de la máquina Amass:**
+
+```bash
+echo dev.lab.local > /tmp/uno.txt
+
+amass enum -engine http://127.0.0.1:4000 -active -nf /tmp/uno.txt -d lab.local -p 80,443 -timeout 1
+```
+
+Qué significa `-nf` (*names file*): le indicas a Amass un archivo con nombres
+que ya conoces o quieres probar. El motor los consulta contra el DNS y
+registra los que resuelven.
+
+Después, mira el resultado:
+
+```bash
+amass subs -names -d lab.local -ip
+```
+
+```
+dev.lab.local 192.168.56.103
+lab.local 192.168.56.103
+mail.lab.local 192.168.56.103
+ns1.lab.local 192.168.56.101
+```
+
+`dev.lab.local` apareció con su IP. El DNS lo confirmó.
+
+**Y si pruebas con uno que no existe?**
+
+```bash
+echo test.lab.local > /tmp/uno.txt
+
+amass enum -engine http://127.0.0.1:4000 -active -nf /tmp/uno.txt -d lab.local -p 80,443 -timeout 1
+```
+
+El DNS responde NXDOMAIN y `test.lab.local` **no** aparece en los resultados.
+
+> **Por qué el script y no un solo comando:** en Amass v5.1.3, pasar varios
+> nombres a `-nf` a la vez provoca un error interno en la API (`bulk`) que
+> tumba el motor. Con un solo nombre funciona siempre. `./start.sh --brute`
+> hace el trabajo recorriendo los 13 uno por uno.
+
+### Cómo ver los 11 dominios descubiertos
+
+El comando es el mismo de siempre. La diferencia es que ahora la base de
+datos tiene los 13 candidatos:
+
+```bash
+amass subs -names -d lab.local -ip
+```
+
+```
+admin.lab.local 192.168.56.105
+api.lab.local 192.168.56.109
+dev.lab.local 192.168.56.103
+gitlab.lab.local 192.168.56.107
+grafana.lab.local 192.168.56.108
+jenkins.lab.local 192.168.56.107
+lab.local 192.168.56.103
+mail.lab.local 192.168.56.103
+ns1.lab.local 192.168.56.101
+old.lab.local 192.168.56.110
+qa.lab.local 192.168.56.104
+staging.lab.local 192.168.56.103
+vpn.lab.local 192.168.56.106
+www.lab.local 192.168.56.103
+```
+
+Quitando `-ip` salen solo los nombres. Añadiendo `-ip` sale también dónde
+resuelve cada uno, que es lo que permite ver el agrupamiento por IP.
+
 ### La lista de palabras
 
 El archivo `lab-infra/wordlists/subdomains-lab.txt` está creado para este
