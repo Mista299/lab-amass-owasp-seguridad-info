@@ -53,7 +53,7 @@ Sin `+short` ves el código de estado, que es lo que importa:
 | `NOERROR` | La consulta funcionó. Si hay respuesta, el nombre existe |
 | `NXDOMAIN` | **No existe.** El nombre no está en la zona |
 
-Un registro no es solo nombre + IP. Los tipos que importan aquí:
+Un registro no es solo nombre + IP. Estos son los tipos que importan aquí:
 
 | Tipo | Para qué |
 |---|---|
@@ -62,6 +62,57 @@ Un registro no es solo nombre + IP. Los tipos que importan aquí:
 | `NS` | Qué servidores DNS son los autorizados |
 | `MX` | Servidor de correo |
 | `SRV` | Puerto y protocolo de un servicio |
+
+### Cómo preguntar por cada tipo
+
+Todos van **dentro de la máquina Amass**. Cambia el tipo al final del comando:
+
+```bash
+# A: nombre a IPv4
+dig +short @192.168.56.101 dev.lab.local A
+```
+```
+192.168.56.103
+```
+
+```bash
+# NS: quienes son los servidores de nombres de la zona
+dig +short @192.168.56.101 lab.local NS
+```
+```
+ns1.lab.local.
+```
+
+```bash
+# MX: donde llega el correo (el 10 es la prioridad)
+dig +short @192.168.56.101 lab.local MX
+```
+```
+10 mail.lab.local.
+```
+
+```bash
+# SRV: que servicio hay, en que puerto y con que protocolo
+# (prioridad, peso, puerto, servidor)
+dig +short @192.168.56.101 _sip._tcp.lab.local SRV
+```
+```
+10 10 5060 sipserver.lab.local.
+```
+
+```bash
+# CNAME: un alias apunta a otro nombre
+dig +short @192.168.56.101 intranet.lab.local CNAME
+```
+```
+portal.lab.local.
+```
+
+Y para ver el tipo de registro de un nombre:
+
+```bash
+dig +short @192.168.56.101 lab.local ANY
+```
 
 **Qué le añade Amass al `dig`:** hace las preguntas por ti (genera candidatos y
 pregunta por cada uno), las cruza (un `A` da la IP, un `MX` da el servidor de
@@ -149,21 +200,6 @@ Si intentas un comando de `docker` estando dentro del contenedor, sale
 
 Estos comandos se ejecutan **dentro de la máquina Amass**.
 
-### Primero, comprueba que el DNS ficticio responde
-
-```bash
-dig +short @192.168.56.101 dev.lab.local A
-```
-
-```
-192.168.56.103
-```
-
-Un nombre que no existe (el DNS responde NXDOMAIN, no hay salida):
-
-```bash
-dig +short @192.168.56.101 test.lab.local A
-```
 
 ### Versión de Amass
 
@@ -206,6 +242,10 @@ amass enum -engine http://127.0.0.1:4000 -active -brute -w /wl/subdomains-lab.tx
 ```
 
 ### Los resultados
+
+`enum` es el que trabaja: hace las preguntas al DNS y tarda minutos. `subs` es
+el que informa: lee la base de datos donde `enum` dejó el resultado y responde
+al instante. Es la separación entre recolectar y consultar.
 
 ```bash
 amass subs -names -d lab.local -ip
@@ -506,16 +546,6 @@ depende del contexto, y eso lo decide el equipo de seguridad, no el script.
 No hace falta para el laboratorio. Si quieres practicar la herramienta fuera
 del laboratorio:
 
-**Arch Linux**, con el binario oficial:
-
-```bash
-cd /tmp
-curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_linux_amd64.tar.gz
-curl -LO https://github.com/owasp-amass/amass/releases/download/v5.1.3/amass_checksums.txt
-sha256sum -c amass_checksums.txt --ignore-missing
-tar xzf amass_linux_amd64.tar.gz
-sudo install -m 755 amass_linux_amd64/amass /usr/local/bin/amass
-```
 
 **Kali Linux**, desde los repositorios:
 
