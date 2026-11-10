@@ -494,65 +494,6 @@ docker compose -f compose.yaml exec dns cat /app/zone.txt
 
 ---
 
-## Dos preguntas que suelen aparecer
-
-### "¿No es trampa buscar directo en el DNS?"
-
-No. Es al revés: **es exactamente lo que hace Amass**.
-
-La diferencia es quién formula la pregunta:
-
-| Tú directamente con `dig` | Amass |
-|---|---|
-| Preguntas un nombre que tú ya sabes | Genera los candidatos, pregunta y **correlaciona** |
-| Ves un nombre o un NXDOMAIN | Ves el nombre **con su IP, su servicio y su procedencia** |
-| No queda registro | Queda en el grafo, con TTL y confianza |
-
-Si en la demo preguntas `dig @192.168.56.101 dev.lab.local` y obtienes
-`192.168.56.103`, estás haciendo una consulta DNS normal. Eso es legitimo y es lo
-que hace la herramienta. La diferencia es que Amass hace 13 de esas, las
-convierte en activos con relaciones, y guarda cuáles fallaron.
-
-De hecho, el comando `logs dns` que se ve arriba **es la bitácora de Amass**.
-Esa es la prueba: el servidor DNS registra cada consulta, y se ve de dónde
-viene cada nombre. Es la misma técnica de la vida real, pero con la
-posibilidad de auditar qué se preguntó.
-
-### "¿Qué es el TTL?"
-
-**TTL = Time To Live.** Es cuántos segundos puede un resolver DNS guardar una
-respuesta antes de tener que volver a preguntarle al servidor autoritativo.
-
-```
-Servidor DNS  ──"dev.lab.local = 192.168.56.103"──►  Resolver DNS
-                                                            │
-                                              lo guarda 60 s (TTL)
-                                                            │
-                                              si alguien pregunta de nuevo,
-                                              responde sin preguntar al servidor
-```
-
-En nuestro laboratorio el TTL de la zona es **300 segundos** (5 minutos) y el
-de la base de datos de Amass es **1440 minutos** (24 horas).
-
-Dónde aparece en Amass:
-
-| Dato | Significado |
-|---|---|
-| TTL de un registro DNS | Cuánto tiempo un resolver puede cachearlo |
-| TTL en la base de datos de Amass | Cuánto tiempo Amass da por válido un hallazgo antes de volver a verificarlo |
-
-Por qué importa en seguridad:
-
-- Si el TTL es alto (24 h), un subdominio puede seguir resolviendo aunque lo
-  hayas eliminado. Los activos "muertos" tardan en desaparecer.
-- Si el TTL es bajo (5 min), los cambios se propagan rápido, pero Amass tiene
-  que re-preguntar más a menudo, y eso genera más tráfico (y mas facilmente detectable).
-- Un activo con TTL alto **y** ninguna fuente que lo confirme es probablemente
-  un residuo.
-
----
-
 ## La zona del laboratorio
 
 `lab.local` tiene 32 nombres en `192.168.56.0/24`. Los que importan:
@@ -597,23 +538,6 @@ depende del contexto, y eso lo decide el equipo de seguridad, no el script.
 ./start.sh amass -version
 ./start.sh amass subs -names -d lab.local -ip
 ```
-
----
-
-## Problemas frecuentes
-
-| Síntoma | Causa | Solución |
-|---|---|---|
-| `Failed to perform a bulk transfer of assets: EOF` | Error interno de Amass v5.1.3 al pasar varios nombres con `-nf`. Mata el motor. | Usa `./start.sh --brute`, que los pasa de a uno. |
-| `Failed to create a session with the Amass engine` | El motor no está listo | `./start.sh` espera al motor. Si persiste, `--reset`. |
-| `Failed to obtain the BGPTools IP address` | `bgp.tools` no resuelve en el DNS del laboratorio | Verifica que está en `lab-infra/docker/zone.txt` y haz `--reset` |
-| `flag provided but not defined: -src` / `-ip` / `-o` | Banderas de v3/v4 que ya no existen en v5 | Usa `amass subs` para leer resultados |
-| `subcommand provided but not defined: db` | El subcomando `db` fue eliminado en v5 | Usa `amass subs` o `sqlite3` |
-| La enumeración no descubre nada | Faltan las `transformations` en el config | Restaura el bloque `transformations:` de `lab-infra/configs/config.yaml` |
-| `service "amass" is not running` | Los contenedores están detenidos | `./start.sh` los levanta |
-| `Address already in use` | Ya hay contenedores con esos nombres | `./start.sh --stop` y vuelve a levantar |
-| `Failed to populate the ASN cache: zero entities found` | Normal: requiere WHOIS/RDAP | Ignorar |
-| `docker: permission denied` | Tu usuario no está en el grupo `docker` | `sudo usermod -aG docker $USER` y reinicia sesión |
 
 ---
 
